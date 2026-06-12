@@ -1,0 +1,18 @@
+# секреты — НИКОГДА не коммитить
+.env
+
+# логи
+*.log
+*.log.*
+bot.err.log
+bot.out.log
+
+# данные портфеля и кэш (личное/окружение)
+portfolio_data.json
+price_cache.json
+*.tmp
+
+# окружение Python
+.venv/
+__pycache__/
+*.pyc

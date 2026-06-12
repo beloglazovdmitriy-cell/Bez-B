@@ -1,0 +1,54 @@
+name: Deploy Mini App to GitHub Pages
+
+# Собирает фронт из miniapp/ и публикует на GitHub Pages при пуше в main.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "miniapp/**"
+      - ".github/workflows/deploy-miniapp.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: miniapp/package-lock.json
+      - name: Install deps
+        working-directory: miniapp
+        run: npm ci
+      - name: Build
+        working-directory: miniapp
+        # адрес бэкенда подставится из переменной репозитория VITE_API_BASE
+        # (Settings → Secrets and variables → Actions → Variables). Если пусто —
+        # фронт работает на мок-данных.
+        env:
+          VITE_API_BASE: ${{ vars.VITE_API_BASE }}
+        run: npm run build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: miniapp/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
