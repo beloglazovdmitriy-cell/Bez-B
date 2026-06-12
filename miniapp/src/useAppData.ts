@@ -27,15 +27,18 @@ export function useAppData(): AppData {
   const [user, setUser] = useState(mockUser);
   const [loading, setLoading] = useState(true);
 
+  // Грузим независимо: кто кто узнан владелец (user) и быстрые данные не должны
+  // ждать медленные котировки (/api/summary, /api/compare). Иначе вкладка «Сделки»
+  // (зависит от user.isAdmin) появляется только после самого медленного запроса.
   function refresh() {
-    return Promise.all([loadSummary(), loadHistory(), loadBench(), loadJournal(), loadUser()])
-      .then(([s, h, b, j, u]) => {
-        setSummary(s); setHistory(h); setBench(b); setJournal(j); setUser(u);
-      })
-      .finally(() => setLoading(false));
+    loadUser().then(setUser).catch(() => {});
+    loadSummary().then(setSummary).catch(() => {});
+    loadHistory().then(setHistory).catch(() => {});
+    loadBench().then(setBench).catch(() => {});
+    loadJournal().then(setJournal).catch(() => {}).finally(() => setLoading(false));
   }
 
   useEffect(() => { refresh(); }, []);
 
-  return { summary, history, bench, journal, user, loading, reload: () => { refresh(); } };
+  return { summary, history, bench, journal, user, loading, reload: refresh };
 }
