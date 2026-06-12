@@ -53,3 +53,5 @@ export const apiDeposit = (b: { rub: number; rate: number }) =>
   postJSON("/api/deposit", b);
 export const apiWithdraw = (b: { amountUsdt: number }) =>
   postJSON("/api/withdraw", b);
+export const apiDepositAsset = (b: { ticker: string; amountUsdt: number; price?: number; reason?: string }) =>
+  postJSON("/api/deposit_asset", b);

@@ -121,6 +121,28 @@ def add_withdraw(usdt: float) -> dict:
     return _append(data, {"type": "withdraw", "usdt": float(usdt)})
 
 
+def add_asset_deposit(ticker: str, amount_usdt: float, price_usdt=None, rate_rub=None) -> dict:
+    """Завести готовый актив снаружи (перевод с биржи/кошелька) на сумму
+    `amount_usdt`. Это новый внешний капитал в виде актива: кэш USDT не тратится.
+    `price_usdt` — цена входа (по умолчанию текущая рыночная), `rate_rub` — курс
+    на момент завода (по умолчанию текущий ЦБ) для рублёвого учёта."""
+    ticker = ticker.strip().upper()
+    price = float(price_usdt) if price_usdt else get_price_usd(ticker)
+    rate = float(rate_rub) if rate_rub else get_usd_rub()
+    qty = amount_usdt / price
+    cost = qty * price
+    try:
+        val_before = summary()["total_value_usdt"]
+    except Exception:
+        val_before = None
+    data = storage.load()
+    _units_inflow(data, cost, val_before)        # внешний капитал -> новые паи
+    tx = _append(data, {"type": "asset_deposit", "ticker": ticker, "qty": qty,
+                        "price_usdt": price, "rate_rub": rate})
+    tx["amount_usdt"] = cost
+    return tx
+
+
 def market_buy(ticker: str, amount_usdt: float) -> dict:
     """Купить актив «по рынку» на `amount_usdt`. Если кэша USDT не хватает,
     недостающее считается заводом актива извне (перевод с биржи) — кэш не уходит
@@ -182,12 +204,14 @@ def _replay(trades, rate_now):
             usdt_cash += t["usdt"]
         elif ttype == "withdraw":
             usdt_cash -= min(t["usdt"], usdt_cash)   # кэш не уходит в минус
-        elif ttype == "buy":
+        elif ttype in ("buy", "asset_deposit"):
             price = t.get("price_usdt", t.get("price_usd"))
             rate_buy = t.get("rate_rub", rate_now)
             cost = t["qty"] * price
-            # списываем из кэша только что есть; нехватка = завод актива извне
-            usdt_cash -= min(cost, max(usdt_cash, 0.0))
+            # buy тратит кэш (нехватка = завод актива извне); asset_deposit —
+            # это завод готового актива снаружи, кэш не трогаем вовсе.
+            if ttype == "buy":
+                usdt_cash -= min(cost, max(usdt_cash, 0.0))
             b = book.setdefault(t["ticker"], {"qty": 0.0, "cost_usdt": 0.0, "cost_rub": 0.0})
             b["qty"] += t["qty"]
             b["cost_usdt"] += cost

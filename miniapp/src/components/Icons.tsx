@@ -123,6 +123,14 @@ export const IconChevron = ({ size = 24, className }: P) => (
   </svg>
 );
 
+export const IconCalc = ({ size = 24, className }: P) => (
+  <svg {...base(size, className)}>
+    <rect x="4" y="3" width="16" height="18" rx="2" />
+    <path d="M8 7h8" />
+    <path d="M8 11h2M12 11h2M16 11h0.01M8 15h2M12 15h2M16 15h0.01M8 18h2" />
+  </svg>
+);
+
 // Логотип Bitcoin (заливка, фирменный оранжевый). Без stroke — отдельный svg.
 export const IconBitcoin = ({ size = 24, className }: P) => (
   <svg width={size} height={size} viewBox="0 0 24 24" className={className} fill="#f7931a">

@@ -5,14 +5,16 @@ import {
   IconJournal,
   IconTrade,
   IconProfile,
+  IconCalc,
 } from "./Icons";
 
-export type Tab = "portfolio" | "chart" | "journal" | "trade" | "profile";
+export type Tab = "portfolio" | "chart" | "journal" | "calc" | "trade" | "profile";
 
 const TABS: { id: Tab; icon: ComponentType<{ size?: number }>; label: string }[] = [
   { id: "portfolio", icon: IconPortfolio, label: "Портфель" },
   { id: "chart", icon: IconChart, label: "Динамика" },
   { id: "journal", icon: IconJournal, label: "Журнал" },
+  { id: "calc", icon: IconCalc, label: "Расчёт" },
   { id: "trade", icon: IconTrade, label: "Сделки" },
   { id: "profile", icon: IconProfile, label: "Профиль" },
 ];

@@ -14,7 +14,7 @@ from datetime import time as dtime, datetime, timedelta
 
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup,
-    ReplyKeyboardMarkup, KeyboardButton,
+    ReplyKeyboardMarkup, KeyboardButton, WebAppInfo,
 )
 from telegram.constants import ParseMode
 from telegram.ext import (
@@ -342,13 +342,38 @@ async def _show_copy(q, capital_rub, is_admin):
 
 # ───────────────────────── Команды ─────────────────────────
 
+WELCOME = (
+    "👋 *Привет! Это «Без Б» — инвестиции без буллшита.*\n\n"
+    "Я веду свой инвестпортфель *публично и в реальном времени*: каждая покупка "
+    "и продажа — открыто, с причиной, без задним числом. Никаких «иксов» и "
+    "обещаний золотых гор — только реальные сделки и честные результаты, "
+    "в том числе ошибки.\n\n"
+    "*Что внутри приложения:*\n"
+    "📊 Портфель — состав, баланс и доходность в ₽ и $\n"
+    "📈 Динамика — рост капитала и сравнение с рынком\n"
+    "📔 Журнал — все сделки с причинами\n"
+    "🧮 Расчёт — калькулятор: как создаётся капитал, если начать сейчас, "
+    "а не «потом»\n"
+    "📋 Повтори стратегию под свой капитал\n\n"
+    "Жми «🚀 Открыть приложение» и заходи в канал — там разборы и контекст.\n\n"
+    "_Это личный портфель автора и не является индивидуальной инвестиционной "
+    "рекомендацией._"
+)
+
+
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
+    is_admin = _is_admin(update.effective_user.id)
     await update.message.reply_text(
-        "*Без Б* — публичный портфель в реальном времени.\nВыбери действие:",
-        parse_mode=ParseMode.MARKDOWN, reply_markup=kb_reply())
+        WELCOME, parse_mode=ParseMode.MARKDOWN, reply_markup=kb_reply())
+    rows = [
+        [InlineKeyboardButton("🚀 Открыть приложение",
+                              web_app=WebAppInfo(url=config.MINIAPP_URL))],
+        [InlineKeyboardButton("📢 Канал «Без Б»", url=config.CHANNEL_URL)],
+    ]
+    rows += kb_main(is_admin).inline_keyboard
     await update.message.reply_text(
-        "Меню:", reply_markup=kb_main(_is_admin(update.effective_user.id)))
+        "Открой приложение или выбери раздел:", reply_markup=InlineKeyboardMarkup(rows))
 
 
 async def cmd_portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -780,9 +805,10 @@ def _describe_tx(t):
         return f"пополнение {t['usdt']:.0f} USDT по {t['rate_rub']:.2f} ₽"
     if ttype == "withdraw":
         return f"вывод {t['usdt']:.0f} USDT"
-    if ttype in ("buy", "sell"):
+    if ttype in ("buy", "sell", "asset_deposit"):
         price = t.get("price_usdt", t.get("price_usd"))
-        verb = "покупка" if ttype == "buy" else "продажа"
+        verb = {"buy": "покупка", "sell": "продажа",
+                "asset_deposit": "завод актива"}[ttype]
         return f"{verb} {_display(t['ticker'])}: {t['qty']:.6g} шт. по ${price:,.2f}"
     return "операция"
 

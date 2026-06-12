@@ -23,7 +23,7 @@ def _buys():
     """Все покупки с суммой в USDT, курсом и датой."""
     out = []
     for t in storage.load()["trades"]:
-        if (t.get("type") or t.get("side")) == "buy":
+        if (t.get("type") or t.get("side")) in ("buy", "asset_deposit"):
             price = t.get("price_usdt", t.get("price_usd"))
             if not price:
                 continue

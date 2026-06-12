@@ -154,6 +154,13 @@ class WithdrawReq(BaseModel):
     amountUsdt: float
 
 
+class AssetDepositReq(BaseModel):
+    ticker: str
+    amountUsdt: float
+    price: float | None = None      # цена входа; по умолчанию рыночная
+    reason: str | None = None
+
+
 def _ok():
     return {"ok": True, "summary": _summary_payload()}
 
@@ -198,6 +205,18 @@ def api_withdraw(req: WithdrawReq, x_init_data: str | None = Header(default=None
     return _ok()
 
 
+@app.post("/api/deposit_asset")
+def api_deposit_asset(req: AssetDepositReq, x_init_data: str | None = Header(default=None)):
+    _require_admin(x_init_data)
+    try:
+        tx = portfolio.add_asset_deposit(req.ticker, req.amountUsdt, req.price)
+        if req.reason:
+            portfolio.set_reason(tx["id"], req.reason)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return _ok()
+
+
 @app.get("/api/history")
 def history():
     import storage
@@ -220,13 +239,13 @@ def journal():
     out = []
     for t in portfolio.get_operations():
         ttype = t.get("type") or t.get("side")
-        if ttype not in ("buy", "sell"):
+        if ttype not in ("buy", "sell", "asset_deposit"):
             continue
         price = t.get("price_usdt", t.get("price_usd"))
         amount = t.get("amount_usdt", t["qty"] * price)
         out.append({
             "date": datetime.fromtimestamp(t["ts"]).strftime("%d.%m"),
-            "side": ttype,
+            "side": "sell" if ttype == "sell" else "buy",
             "ticker": t["ticker"],
             "amountUsd": round(amount),
             "price": round(price, 2),

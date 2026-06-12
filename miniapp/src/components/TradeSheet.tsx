@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Summary } from "../data";
-import { apiBuy, apiSell, apiDeposit, apiWithdraw } from "../data";
+import { apiBuy, apiSell, apiDeposit, apiWithdraw, apiDepositAsset } from "../data";
 
 export type Action = "buy" | "sell" | "deposit" | "withdraw";
 
@@ -30,12 +30,15 @@ export default function TradeSheet({
   const [ticker, setTicker] = useState("");
   const [amount, setAmount] = useState("");
   const [rate, setRate] = useState("");
+  const [price, setPrice] = useState("");
   const [reason, setReason] = useState("");
   const [sellAll, setSellAll] = useState(false);
+  const [depoMode, setDepoMode] = useState<"usdt" | "asset">("usdt");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const needsTicker = action === "buy" || action === "sell";
+  const assetDepo = action === "deposit" && depoMode === "asset";
+  const needsTicker = action === "buy" || action === "sell" || assetDepo;
 
   async function submit() {
     setError(""); setBusy(true);
@@ -45,7 +48,14 @@ export default function TradeSheet({
       } else if (action === "sell") {
         await apiSell({ ticker, amountUsdt: sellAll ? null : Number(amount), reason: reason || undefined });
       } else if (action === "deposit") {
-        await apiDeposit({ rub: Number(amount), rate: Number(rate) });
+        if (depoMode === "asset") {
+          await apiDepositAsset({
+            ticker, amountUsdt: Number(amount),
+            price: price ? Number(price) : undefined, reason: reason || undefined,
+          });
+        } else {
+          await apiDeposit({ rub: Number(amount), rate: Number(rate) });
+        }
       } else {
         await apiWithdraw({ amountUsdt: Number(amount) });
       }
@@ -60,6 +70,7 @@ export default function TradeSheet({
 
   // валидность формы
   const valid =
+    assetDepo ? !!ticker && Number(amount) > 0 :
     action === "deposit" ? Number(amount) > 0 && Number(rate) > 0 :
     action === "withdraw" ? Number(amount) > 0 :
     action === "buy" ? !!ticker && Number(amount) > 0 :
@@ -71,8 +82,18 @@ export default function TradeSheet({
         <div className="sheet-grip" />
         <div className="sheet-title">{TITLES[action]}</div>
 
-        {/* выбор тикера */}
-        {action === "buy" && (
+        {/* пополнение: чем заводим — кэшем USDT или готовым активом */}
+        {action === "deposit" && (
+          <div className="seg">
+            <button className={`seg-btn ${depoMode === "usdt" ? "on" : ""}`}
+              onClick={() => setDepoMode("usdt")}>USDT (кэш)</button>
+            <button className={`seg-btn ${depoMode === "asset" ? "on" : ""}`}
+              onClick={() => setDepoMode("asset")}>Активом</button>
+          </div>
+        )}
+
+        {/* выбор тикера — для покупки и завода актива */}
+        {(action === "buy" || assetDepo) && (
           <Field label="Актив">
             <input className="inp" placeholder="Тикер, напр. BTC"
               value={ticker} onChange={(e) => setTicker(e.target.value.toUpperCase())} />
@@ -89,19 +110,33 @@ export default function TradeSheet({
           </Field>
         )}
 
-        {/* пополнение: рубли + курс */}
+        {/* пополнение */}
         {action === "deposit" ? (
-          <>
-            <Field label="Сумма, ₽">
-              <input className="inp" inputMode="decimal" placeholder="30000"
-                value={amount} onChange={(e) => setAmount(e.target.value)} />
-              <Chips items={RUB.map(String)} active={amount} onPick={setAmount} suffix=" ₽" />
-            </Field>
-            <Field label="Курс ₽ за 1 USDT">
-              <input className="inp" inputMode="decimal" placeholder="100"
-                value={rate} onChange={(e) => setRate(e.target.value)} />
-            </Field>
-          </>
+          depoMode === "usdt" ? (
+            <>
+              <Field label="Сумма, ₽">
+                <input className="inp" inputMode="decimal" placeholder="30000"
+                  value={amount} onChange={(e) => setAmount(e.target.value)} />
+                <Chips items={RUB.map(String)} active={amount} onPick={setAmount} suffix=" ₽" />
+              </Field>
+              <Field label="Курс ₽ за 1 USDT">
+                <input className="inp" inputMode="decimal" placeholder="100"
+                  value={rate} onChange={(e) => setRate(e.target.value)} />
+              </Field>
+            </>
+          ) : (
+            <>
+              <Field label="Сумма актива, USDT">
+                <input className="inp" inputMode="decimal" placeholder="100"
+                  value={amount} onChange={(e) => setAmount(e.target.value)} />
+                <Chips items={AMOUNTS.map(String)} active={amount} onPick={setAmount} />
+              </Field>
+              <Field label="Цена входа, USDT (пусто = рыночная)">
+                <input className="inp" inputMode="decimal" placeholder="рыночная"
+                  value={price} onChange={(e) => setPrice(e.target.value)} />
+              </Field>
+            </>
+          )
         ) : action === "withdraw" ? (
           <Field label={`Сумма USDT (доступно ${summary.cashUsdt.toFixed(0)})`}>
             <input className="inp" inputMode="decimal" placeholder="100"
