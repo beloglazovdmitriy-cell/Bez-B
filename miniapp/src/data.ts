@@ -22,10 +22,10 @@ function fallbackUser() {
   return mockUser;
 }
 
-// База API. В dev пусто → работает vite-прокси /api. На GitHub Pages задаётся
-// через VITE_API_BASE (адрес задеплоенного бэкенда). Если не задано и /api нет —
-// getJSON отдаёт мок (фолбэк), и приложение всё равно живёт.
-const API_BASE = import.meta.env.VITE_API_BASE ?? "";
+// База API. В dev пусто → работает vite-прокси /api. На GitHub Pages по умолчанию
+// ходим к нашему серверу (VPS, HTTPS). Можно переопределить через VITE_API_BASE.
+const ON_PAGES = typeof location !== "undefined" && location.hostname.endsWith("github.io");
+const API_BASE = import.meta.env.VITE_API_BASE ?? (ON_PAGES ? "https://155.212.134.96.sslip.io" : "");
 
 async function getJSON<T>(path: string, fallback: T): Promise<T> {
   try {
