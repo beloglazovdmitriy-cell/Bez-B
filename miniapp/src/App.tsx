@@ -40,7 +40,7 @@ export default function App() {
 
       {tab === "portfolio" && <PortfolioScreen summary={data.summary} pf={pf} />}
       {tab === "chart" && <ChartScreen history={data.history} bench={data.bench} />}
-      {tab === "journal" && <JournalScreen journal={data.journal} />}
+      {tab === "journal" && <JournalScreen journal={data.journal} user={data.user} pf={pf} />}
       {tab === "calc" && <CalcScreen />}
       {tab === "trade" && (
         <TradeScreen user={data.user} summary={data.summary} onDone={data.reload} pf={pf} />

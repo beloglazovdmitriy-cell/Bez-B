@@ -93,3 +93,19 @@ export async function apiAnalyze(pf: Pf): Promise<string> {
   }
   return (await res.json()).text as string;
 }
+
+// AI-разбор конкретной сделки (черновик поста) → текст
+export async function apiTradeComment(pf: Pf, id: number): Promise<string> {
+  const res = await fetch(`${API_BASE}/api/trade_comment?p=${pf}&id=${id}`, {
+    method: "POST",
+    headers: { "X-Init-Data": initData() },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error((err as any).detail || "AI недоступен");
+  }
+  return (await res.json()).text as string;
+}
+
+// Опубликовать текст в канал (только владелец)
+export const apiPublish = (text: string) => postJSON("/api/publish", { text });

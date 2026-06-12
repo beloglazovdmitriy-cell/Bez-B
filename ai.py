@@ -9,6 +9,8 @@ import os
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 MODEL = os.getenv("AI_MODEL", "claude-haiku-4-5")
+# для публичных постов берём модель посильнее (объём низкий — DCA раз в 2 недели)
+POST_MODEL = os.getenv("AI_POST_MODEL", "claude-sonnet-4-6")
 
 SYSTEM = (
     "Ты — аналитик проекта «Без Б — инвестиции без буллшита». "
@@ -60,6 +62,40 @@ def analyze_portfolio(data: dict) -> str:
         model=MODEL,
         max_tokens=1200,
         system=SYSTEM,
+        messages=[{"role": "user", "content": user}],
+    )
+    return "".join(b.text for b in resp.content if b.type == "text").strip()
+
+
+SYSTEM_POST = (
+    "Ты ведёшь Telegram-канал «Без Б — инвестиции без буллшита». Превращаешь "
+    "сделку автора в короткий пост: что сделал, почему это может быть разумно "
+    "(логика), какие риски и что говорит против, на что смотреть дальше. "
+    "Тон: живо, дерзко, по делу, без воды и без обещаний доходности. Это "
+    "наблюдение и разбор мышления, НЕ сигнал и не призыв повторять. Пиши по-русски, "
+    "100–160 слов, можно эмодзи и короткие абзацы. В конце одной строкой: "
+    "«Не ИИР. Слежу за портфелём открыто.»"
+)
+
+
+def analyze_trade(trade: dict) -> str:
+    """Сгенерировать черновик поста в канал по сделке. Бросает при ошибке."""
+    import anthropic
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    side = "Купил" if trade.get("side") == "buy" else "Продал"
+    lines = [
+        f"Сделка: {side} {trade['ticker']} на {trade.get('amountUsd', 0):,.0f}$ "
+        f"по ${trade.get('price', 0):g} ({trade.get('qty', 0):g} шт.)".replace(",", " "),
+        f"Доля {trade['ticker']} в портфеле сейчас: {trade.get('sharePct', 0):.0f}%",
+    ]
+    if trade.get("reason"):
+        lines.append(f"Причина (от автора): {trade['reason']}")
+    user = ("Напиши пост в канал по этой сделке:\n\n" + "\n".join(lines) +
+            "\n\nДай логику, риски, что против, на что смотреть. Без сигналов.")
+    resp = client.messages.create(
+        model=POST_MODEL,
+        max_tokens=900,
+        system=SYSTEM_POST,
         messages=[{"role": "user", "content": user}],
     )
     return "".join(b.text for b in resp.content if b.type == "text").strip()

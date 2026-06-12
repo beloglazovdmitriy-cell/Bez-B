@@ -285,6 +285,7 @@ def journal(p: str = "bezb", x_init_data: str | None = Header(default=None)):
         price = t.get("price_usdt", t.get("price_usd"))
         amount = t.get("amount_usdt", t["qty"] * price)
         out.append({
+            "id": t["id"],
             "date": datetime.fromtimestamp(t["ts"]).strftime("%d.%m"),
             "side": "sell" if ttype == "sell" else "buy",
             "ticker": t["ticker"],
@@ -324,6 +325,57 @@ def analyze(p: str = "bezb", x_init_data: str | None = Header(default=None)):
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI временно недоступен: {e}")
     return {"text": text}
+
+
+@app.post("/api/trade_comment")
+def trade_comment(id: int, p: str = "bezb", x_init_data: str | None = Header(default=None)):
+    """AI-черновик поста в канал по конкретной сделке (только владелец для Без Б)."""
+    _ctx(p, x_init_data, write=True)
+    if not ai.available():
+        raise HTTPException(status_code=503,
+                            detail="AI появится после подключения ключа Claude API")
+    tx = portfolio.get_operation(id)
+    ttype = (tx or {}).get("type") or (tx or {}).get("side")
+    if not tx or ttype not in ("buy", "sell", "asset_deposit"):
+        raise HTTPException(status_code=404, detail="Сделка не найдена")
+    s = portfolio.summary()
+    pv = s["positions_value_usdt"] or 1
+    share = next((pos.value_usd / pv * 100 for pos in s["positions"] if pos.ticker == tx["ticker"]), 0)
+    price = tx.get("price_usdt", tx.get("price_usd"))
+    data = {
+        "side": "sell" if ttype == "sell" else "buy",
+        "ticker": tx["ticker"], "qty": tx["qty"],
+        "amountUsd": tx.get("amount_usdt", tx["qty"] * price), "price": price,
+        "sharePct": share, "reason": tx.get("reason", ""),
+    }
+    try:
+        text = ai.analyze_trade(data)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"AI временно недоступен: {e}")
+    return {"text": text}
+
+
+class PublishReq(BaseModel):
+    text: str
+
+
+@app.post("/api/publish")
+def publish(req: PublishReq, x_init_data: str | None = Header(default=None)):
+    """Опубликовать текст в канал (только владелец)."""
+    if not _resolve_user(x_init_data)["isAdmin"]:
+        raise HTTPException(status_code=403, detail="Только владелец")
+    if not config.CHANNEL_ID:
+        raise HTTPException(status_code=400, detail="Канал не подключён (задай CHANNEL_ID)")
+    import requests
+    try:
+        r = requests.post(
+            f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage",
+            json={"chat_id": config.CHANNEL_ID, "text": req.text}, timeout=15)
+        if not r.json().get("ok"):
+            raise RuntimeError(r.text)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Не удалось опубликовать: {e}")
+    return {"ok": True}
 
 
 @app.get("/api/compare")

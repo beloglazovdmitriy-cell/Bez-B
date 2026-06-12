@@ -66,6 +66,7 @@ export const mockBench: BenchRow[] = [
 
 // Журнал сделок — для ленты-дневника.
 export interface JournalEntry {
+  id: number;
   date: string;
   side: "buy" | "sell";
   ticker: string;
@@ -76,11 +77,11 @@ export interface JournalEntry {
   reason: string;
 }
 export const mockJournal: JournalEntry[] = [
-  { date: "10.06", side: "buy", ticker: "BTC", qty: 0.0038, amountUsd: 300, price: 79010, sharePct: 35, reason: "Плановая закупка (DCA)" },
-  { date: "06.06", side: "buy", ticker: "NVDA", qty: 1.905, amountUsd: 250, price: 131.2, sharePct: 12, reason: "Долгосрочный тренд" },
-  { date: "27.05", side: "sell", ticker: "TSLA", qty: 0.546, amountUsd: 200, price: 366.0, sharePct: 16, reason: "Ребаланс портфеля" },
-  { date: "20.05", side: "buy", ticker: "ETH", qty: 0.145, amountUsd: 250, price: 1726, sharePct: 16, reason: "Докупка на просадке" },
-  { date: "13.05", side: "buy", ticker: "GDX", qty: 3.78, amountUsd: 300, price: 79.4, sharePct: 12, reason: "Свободный кэш" },
+  { id: 1, date: "10.06", side: "buy", ticker: "BTC", qty: 0.0038, amountUsd: 300, price: 79010, sharePct: 35, reason: "Плановая закупка (DCA)" },
+  { id: 2, date: "06.06", side: "buy", ticker: "NVDA", qty: 1.905, amountUsd: 250, price: 131.2, sharePct: 12, reason: "Долгосрочный тренд" },
+  { id: 3, date: "27.05", side: "sell", ticker: "TSLA", qty: 0.546, amountUsd: 200, price: 366.0, sharePct: 16, reason: "Ребаланс портфеля" },
+  { id: 4, date: "20.05", side: "buy", ticker: "ETH", qty: 0.145, amountUsd: 250, price: 1726, sharePct: 16, reason: "Докупка на просадке" },
+  { id: 5, date: "13.05", side: "buy", ticker: "GDX", qty: 3.78, amountUsd: 300, price: 79.4, sharePct: 12, reason: "Свободный кэш" },
 ];
 
 // Фолбэк-пользователь, когда API недоступен (напр. на GitHub Pages без бэкенда).

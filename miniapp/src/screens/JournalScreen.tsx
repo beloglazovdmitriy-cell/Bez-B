@@ -1,11 +1,25 @@
-import { IconArrowDown, IconArrowUp } from "../components/Icons";
+import { useState } from "react";
+import { IconArrowDown, IconArrowUp, IconAI } from "../components/Icons";
 import { fmtQty, fmtPrice } from "../components/PositionsList";
-import type { JournalEntry } from "../data";
+import TradeCommentSheet from "../components/TradeCommentSheet";
+import { mockUser } from "../mock";
+import type { JournalEntry, Pf } from "../data";
 
+type User = typeof mockUser;
 const fmt = (n: number) =>
   n.toLocaleString("ru-RU", { maximumFractionDigits: 0 }).replace(/,/g, " ");
 
-export default function JournalScreen({ journal }: { journal: JournalEntry[] }) {
+export default function JournalScreen({
+  journal, user, pf,
+}: {
+  journal: JournalEntry[];
+  user: User;
+  pf: Pf;
+}) {
+  const [commentId, setCommentId] = useState<number | null>(null);
+  // разбор сделки → в канал: только владельцу и только для публичного «Без Б»
+  const canComment = user.isAdmin && pf === "bezb";
+
   if (journal.length === 0) {
     return (
       <div className="content">
@@ -20,10 +34,10 @@ export default function JournalScreen({ journal }: { journal: JournalEntry[] }) 
       </div>
 
       <div className="feed">
-        {journal.map((e, i) => {
+        {journal.map((e) => {
           const buy = e.side === "buy";
           return (
-            <div className="entry" key={i}>
+            <div className="entry" key={e.id}>
               <div className={`entry-ic ${buy ? "buy" : "sell"}`}>
                 {buy ? <IconArrowDown size={18} /> : <IconArrowUp size={18} />}
               </div>
@@ -38,6 +52,11 @@ export default function JournalScreen({ journal }: { journal: JournalEntry[] }) 
                   {fmtQty(e.qty)} {e.ticker} по ${fmtPrice(e.price)} · доля {e.sharePct}%
                 </div>
                 {e.reason && <div className="entry-reason">{e.reason}</div>}
+                {canComment && (
+                  <button className="entry-ai" onClick={() => setCommentId(e.id)}>
+                    <IconAI size={14} /> AI-разбор → в канал
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -47,6 +66,10 @@ export default function JournalScreen({ journal }: { journal: JournalEntry[] }) 
       <div className="disclaimer">
         История ведётся публично и без задним числом.
       </div>
+
+      {commentId !== null && (
+        <TradeCommentSheet pf={pf} id={commentId} onClose={() => setCommentId(null)} />
+      )}
     </div>
   );
 }
