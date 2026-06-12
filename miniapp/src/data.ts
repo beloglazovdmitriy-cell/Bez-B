@@ -25,7 +25,11 @@ function fallbackUser() {
 // База API. В dev пусто → работает vite-прокси /api. На GitHub Pages по умолчанию
 // ходим к нашему серверу (VPS, HTTPS). Можно переопределить через VITE_API_BASE.
 const ON_PAGES = typeof location !== "undefined" && location.hostname.endsWith("github.io");
-const API_BASE = import.meta.env.VITE_API_BASE ?? (ON_PAGES ? "https://155.212.134.96.sslip.io" : "");
+const ENV_BASE = import.meta.env.VITE_API_BASE;
+// важно: пустая строка (когда репо-переменная не задана в Actions) = «не задано»
+const API_BASE = (ENV_BASE && ENV_BASE.length > 0)
+  ? ENV_BASE
+  : (ON_PAGES ? "https://155.212.134.96.sslip.io" : "");
 
 async function getJSON<T>(path: string, fallback: T): Promise<T> {
   try {

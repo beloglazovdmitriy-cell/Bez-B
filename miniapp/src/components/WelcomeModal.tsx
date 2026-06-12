@@ -6,24 +6,23 @@ export default function WelcomeModal({ onClose }: { onClose: () => void }) {
     <div className="sheet-overlay welcome-overlay" onClick={onClose}>
       <div className="welcome" onClick={(e) => e.stopPropagation()}>
         <div className="welcome-logo">
-          Bez <IconLogo size={30} className="brand-btc" />
+          Bez <IconLogo size={32} className="brand-btc" />
         </div>
-        <div className="welcome-sub">инвестиции без буллшита</div>
+        <div className="welcome-head">Капитал с нуля — публично</div>
+
+        <div className="manifesto">
+          <div><b>Без</b> обещаний иксов</div>
+          <div><b>Без</b> сделок задним числом</div>
+          <div><b>Без</b> буллшита — только реальные действия</div>
+        </div>
 
         <p className="welcome-text">
-          Привет! Я веду инвестпортфель <b>публично и в реальном времени</b> —
-          каждая сделка открыто, с причиной, без задним числом. Никаких обещаний
-          «иксов», только честные результаты и ошибки.
+          Здесь я открыто строю инвестпортфель и показываю каждый шаг: покупки,
+          продажи, ошибки и результат в ₽ и $. А ты можешь следить, считать свой
+          план и повторять стратегию под свой капитал.
         </p>
 
-        <div className="welcome-list">
-          <div><b>📊 Портфель</b> — баланс и доходность в ₽ и $</div>
-          <div><b>📈 Динамика</b> — рост капитала и сравнение с рынком</div>
-          <div><b>📔 Журнал</b> — все сделки с причинами</div>
-          <div><b>🧮 Расчёт</b> — как создаётся капитал, если начать сейчас</div>
-        </div>
-
-        <button className="cta" onClick={onClose}>Поехали</button>
+        <button className="cta" onClick={onClose}>Начать</button>
         <div className="welcome-foot">Не является индивидуальной инвестиционной рекомендацией.</div>
       </div>
     </div>

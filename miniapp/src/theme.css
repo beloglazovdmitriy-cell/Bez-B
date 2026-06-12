@@ -289,6 +289,11 @@ body {
 .welcome-logo { display: inline-flex; align-items: center; gap: 6px;
   font-size: 30px; font-weight: 800; }
 .welcome-sub { color: var(--muted); font-size: 13.5px; margin: 2px 0 14px; }
+.welcome-head { font-size: 22px; font-weight: 800; margin: 10px 0 14px; }
+.manifesto { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
+.manifesto div { font-size: 14.5px; }
+.manifesto b { color: var(--accent); }
 .welcome-text { font-size: 14.5px; line-height: 1.6; color: var(--text); margin: 0 0 14px; }
 .welcome-list { display: flex; flex-direction: column; gap: 9px; font-size: 13.5px;
   background: var(--bg); border: 1px solid var(--border); border-radius: 14px;
