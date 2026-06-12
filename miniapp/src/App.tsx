@@ -37,7 +37,7 @@ export default function App() {
       {tab === "trade" && <TradeScreen user={data.user} summary={data.summary} onDone={data.reload} />}
       {tab === "profile" && <ProfileScreen user={data.user} />}
 
-      <BottomNav active={tab} onChange={setTab} />
+      <BottomNav active={tab} onChange={setTab} isAdmin={data.user.isAdmin} />
     </div>
   );
 }

@@ -1,10 +1,13 @@
+import { useState } from "react";
 import BalanceCard from "../components/BalanceCard";
 import CompositionDonut from "../components/CompositionDonut";
 import PositionsList from "../components/PositionsList";
+import CopySheet from "../components/CopySheet";
 import { IconCopy } from "../components/Icons";
 import type { Summary } from "../data";
 
 export default function PortfolioScreen({ summary }: { summary: Summary }) {
+  const [copy, setCopy] = useState(false);
   const hasPositions = summary.positions.length > 0;
   return (
     <div className="content">
@@ -13,7 +16,7 @@ export default function PortfolioScreen({ summary }: { summary: Summary }) {
         <>
           <CompositionDonut s={summary} />
           <PositionsList positions={summary.positions} />
-          <button className="cta">
+          <button className="cta" onClick={() => setCopy(true)}>
             <IconCopy size={18} />
             Повторить портфель
           </button>
@@ -27,6 +30,8 @@ export default function PortfolioScreen({ summary }: { summary: Summary }) {
       <div className="disclaimer">
         Не является индивидуальной инвестиционной рекомендацией.
       </div>
+
+      {copy && <CopySheet summary={summary} onClose={() => setCopy(false)} />}
     </div>
   );
 }

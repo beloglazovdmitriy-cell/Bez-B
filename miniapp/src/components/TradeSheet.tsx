@@ -39,6 +39,7 @@ export default function TradeSheet({
 
   const assetDepo = action === "deposit" && depoMode === "asset";
   const needsTicker = action === "buy" || action === "sell" || assetDepo;
+  const needsReason = action === "buy" || action === "sell";  // у пополнения причины нет
 
   async function submit() {
     setError(""); setBusy(true);
@@ -160,8 +161,8 @@ export default function TradeSheet({
           </Field>
         )}
 
-        {/* причина — для покупки/продажи */}
-        {needsTicker && (
+        {/* причина — только для покупки/продажи */}
+        {needsReason && (
           <Field label="Причина (в журнал и канал)">
             <Chips items={REASONS} active={reason} onPick={(r) => setReason(r === reason ? "" : r)} wrap />
           </Field>

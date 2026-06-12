@@ -294,3 +294,12 @@ body {
   background: var(--bg); border: 1px solid var(--border); border-radius: 14px;
   padding: 14px; margin-bottom: 18px; }
 .welcome-foot { color: #4a4e59; font-size: 11px; text-align: center; margin-top: 12px; }
+
+/* ── Повтори портфель ── */
+.copy-list { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+.copy-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center;
+  gap: 12px; padding: 11px 4px; border-bottom: 1px solid var(--border); }
+.copy-tk { font-weight: 700; }
+.copy-w { color: var(--accent); font-weight: 700; font-size: 13px; }
+.copy-amt { text-align: right; font-weight: 600; }
+.copy-amt small { color: var(--muted); font-weight: 400; }
