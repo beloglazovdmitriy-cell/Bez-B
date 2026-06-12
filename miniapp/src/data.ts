@@ -41,10 +41,12 @@ async function getJSON<T>(path: string, fallback: T): Promise<T> {
   }
 }
 
-export const loadSummary = () => getJSON("/api/summary", mockSummary);
-export const loadHistory = () => getJSON("/api/history", mockHistory);
-export const loadBench = () => getJSON("/api/compare", mockBench);
-export const loadJournal = () => getJSON("/api/journal", mockJournal);
+// pf — какой портфель: "bezb" (публичный) или "me" (личный пользователя)
+export type Pf = "bezb" | "me";
+export const loadSummary = (pf: Pf) => getJSON(`/api/summary?p=${pf}`, mockSummary);
+export const loadHistory = (pf: Pf) => getJSON(`/api/history?p=${pf}`, mockHistory);
+export const loadBench = (pf: Pf) => getJSON(`/api/compare?p=${pf}`, mockBench);
+export const loadJournal = (pf: Pf) => getJSON(`/api/journal?p=${pf}`, mockJournal);
 export async function loadUser() {
   const u = await getJSON("/api/me", fallbackUser());
   // подстраховка: если Telegram сообщает, что это владелец — показываем
@@ -68,13 +70,13 @@ async function postJSON(path: string, body: unknown): Promise<void> {
   }
 }
 
-export const apiBuy = (b: { ticker: string; amountUsdt: number; reason?: string }) =>
-  postJSON("/api/buy", b);
-export const apiSell = (b: { ticker: string; amountUsdt: number | null; reason?: string }) =>
-  postJSON("/api/sell", b);
-export const apiDeposit = (b: { rub: number; rate: number }) =>
-  postJSON("/api/deposit", b);
-export const apiWithdraw = (b: { amountUsdt: number }) =>
-  postJSON("/api/withdraw", b);
-export const apiDepositAsset = (b: { ticker: string; amountUsdt: number; price?: number; reason?: string }) =>
-  postJSON("/api/deposit_asset", b);
+export const apiBuy = (pf: Pf, b: { ticker: string; amountUsdt: number; reason?: string }) =>
+  postJSON(`/api/buy?p=${pf}`, b);
+export const apiSell = (pf: Pf, b: { ticker: string; amountUsdt: number | null; reason?: string }) =>
+  postJSON(`/api/sell?p=${pf}`, b);
+export const apiDeposit = (pf: Pf, b: { rub: number; rate: number }) =>
+  postJSON(`/api/deposit?p=${pf}`, b);
+export const apiWithdraw = (pf: Pf, b: { amountUsdt: number }) =>
+  postJSON(`/api/withdraw?p=${pf}`, b);
+export const apiDepositAsset = (pf: Pf, b: { ticker: string; amountUsdt: number; price?: number; reason?: string }) =>
+  postJSON(`/api/deposit_asset?p=${pf}`, b);

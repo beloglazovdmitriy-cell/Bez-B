@@ -1,16 +1,18 @@
-"""Хранение данных портфеля.
+"""Хранение портфелей (мультипользовательское).
 
-Бэкенд — SQLite (файл portfolio.db). Весь документ портфеля хранится как один
-JSON в одной строке таблицы kv. Так мы:
-  • сохраняем прежний интерфейс load()/save(data)/next_trade_id(data) —
-    остальной код (bot.py, portfolio.py, benchmark.py, charts.py) не меняется;
-  • получаем безопасную одновременную работу двух процессов (бот + API):
-    SQLite в режиме WAL разрешает читателей во время записи, а каждая запись
-    атомарна. JSON-файл с tmp+replace такого не гарантировал.
+Бэкенд — SQLite. Каждый портфель — отдельная строка таблицы portfolios(uid, doc),
+где doc — весь документ портфеля в JSON. uid:
+  • "bezb"          — публичный портфель «Без Б» (его ведёт владелец, бот);
+  • "u<telegram_id>" — личный портфель пользователя.
 
-При первом запуске данные автоматически переносятся из старого
-portfolio_data.json (он остаётся как резервная копия).
+Текущий uid берётся из contextvar (use_uid). По умолчанию — "bezb", поэтому бот
+и любой код без явного контекста работают с публичным портфелем. API ставит uid
+на каждый запрос по выбранному пользователем портфелю.
+
+Интерфейс load()/save(data)/next_trade_id(data) прежний — остальной код
+(portfolio.py, benchmark.py, charts.py, bot.py) не меняется.
 """
+import contextvars
 import json
 import os
 import sqlite3
@@ -20,13 +22,23 @@ from config import DATA_FILE, DEFAULT_FAVORITES
 
 _DB_FILE = os.path.join(os.path.dirname(DATA_FILE), "portfolio.db")
 _lock = threading.Lock()
+_uid_var = contextvars.ContextVar("bezb_uid", default="bezb")
 
 _DEFAULT = {
-    "trades": [],    # лента операций: deposit / buy / sell / withdraw
-    "history": [],   # снимки стоимости: {ts, value_usd, value_rub, invested_rub, index}
-    "favorites": list(DEFAULT_FAVORITES),  # избранные тикеры (быстрые кнопки)
-    "units": 0.0,    # «паи» для индекса Без Б (паевая стоимость = индекс)
+    "trades": [],
+    "history": [],
+    "favorites": list(DEFAULT_FAVORITES),
+    "units": 0.0,
 }
+
+
+def use_uid(uid: str):
+    """Установить текущий портфель для последующих load()/save()."""
+    _uid_var.set(uid)
+
+
+def current_uid() -> str:
+    return _uid_var.get()
 
 
 def _connect():
@@ -37,36 +49,31 @@ def _connect():
 
 
 def _ensure(conn):
-    """Создать таблицу и при первом запуске перенести данные из JSON."""
     conn.execute(
-        "CREATE TABLE IF NOT EXISTS kv (id INTEGER PRIMARY KEY CHECK (id = 1), doc TEXT NOT NULL)")
-    row = conn.execute("SELECT doc FROM kv WHERE id = 1").fetchone()
-    if row is not None:
-        return
-    # миграция: берём старый portfolio_data.json, иначе дефолт
-    data = json.loads(json.dumps(_DEFAULT))
-    if os.path.exists(DATA_FILE):
-        try:
-            with open(DATA_FILE, "r", encoding="utf-8-sig") as f:
-                data = json.load(f)
-        except Exception:
-            pass
-    conn.execute("INSERT INTO kv (id, doc) VALUES (1, ?)",
-                 (json.dumps(data, ensure_ascii=False),))
-    conn.commit()
+        "CREATE TABLE IF NOT EXISTS portfolios (uid TEXT PRIMARY KEY, doc TEXT NOT NULL)")
+    # миграция со старой одно-портфельной схемы kv(id=1) -> portfolios['bezb']
+    try:
+        old = conn.execute("SELECT doc FROM kv WHERE id = 1").fetchone()
+        if old:
+            has = conn.execute("SELECT 1 FROM portfolios WHERE uid = 'bezb'").fetchone()
+            if not has:
+                conn.execute("INSERT INTO portfolios (uid, doc) VALUES ('bezb', ?)", (old[0],))
+                conn.commit()
+    except sqlite3.OperationalError:
+        pass  # старой таблицы kv нет — ок
 
 
 def load():
-    """Загрузить данные портфеля (с дефолтами по ключам)."""
+    """Загрузить документ текущего портфеля (uid из contextvar)."""
+    uid = _uid_var.get()
     with _lock:
         conn = _connect()
         try:
             _ensure(conn)
-            row = conn.execute("SELECT doc FROM kv WHERE id = 1").fetchone()
-            data = json.loads(row[0])
+            row = conn.execute("SELECT doc FROM portfolios WHERE uid = ?", (uid,)).fetchone()
+            data = json.loads(row[0]) if row else json.loads(json.dumps(_DEFAULT))
         finally:
             conn.close()
-    # подстраховка на случай старого/частичного документа
     data.setdefault("trades", [])
     data.setdefault("history", [])
     data.setdefault("favorites", list(DEFAULT_FAVORITES))
@@ -75,15 +82,16 @@ def load():
 
 
 def save(data):
-    """Сохранить данные портфеля (атомарно, одной записью)."""
+    """Сохранить документ текущего портфеля (атомарно)."""
+    uid = _uid_var.get()
     with _lock:
         conn = _connect()
         try:
             _ensure(conn)
             conn.execute(
-                "INSERT INTO kv (id, doc) VALUES (1, ?) "
-                "ON CONFLICT(id) DO UPDATE SET doc = excluded.doc",
-                (json.dumps(data, ensure_ascii=False),))
+                "INSERT INTO portfolios (uid, doc) VALUES (?, ?) "
+                "ON CONFLICT(uid) DO UPDATE SET doc = excluded.doc",
+                (uid, json.dumps(data, ensure_ascii=False)))
             conn.commit()
         finally:
             conn.close()

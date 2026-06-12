@@ -2,37 +2,46 @@ import { useState } from "react";
 import { IconArrowDown, IconArrowUp, IconWallet, IconTrade } from "../components/Icons";
 import TradeSheet, { type Action } from "../components/TradeSheet";
 import { mockUser } from "../mock";
-import type { Summary } from "../data";
+import type { Summary, Pf } from "../data";
 
 type User = typeof mockUser;
 
 const ACTIONS: { id: Action; label: string; sub: string; Icon: typeof IconTrade; tone: string }[] = [
   { id: "buy", label: "Купить", sub: "актив за USDT", Icon: IconTrade, tone: "accent" },
   { id: "sell", label: "Продать", sub: "актив в USDT", Icon: IconArrowUp, tone: "red" },
-  { id: "deposit", label: "Пополнить", sub: "₽ → USDT", Icon: IconArrowDown, tone: "accent" },
+  { id: "deposit", label: "Пополнить", sub: "₽ → USDT или активом", Icon: IconArrowDown, tone: "accent" },
   { id: "withdraw", label: "Вывести", sub: "USDT из портфеля", Icon: IconWallet, tone: "muted" },
 ];
 
 export default function TradeScreen({
-  user, summary, onDone,
+  user, summary, onDone, pf,
 }: {
   user: User;
   summary: Summary;
   onDone: () => void;
+  pf: Pf;
 }) {
   const [action, setAction] = useState<Action | null>(null);
 
-  if (!user.isAdmin) {
+  // «Без Б» меняет только владелец; свой портфель ведёт каждый
+  const canEdit = pf === "me" || user.isAdmin;
+  if (!canEdit) {
     return (
       <div className="content">
-        <div className="stub">Раздел доступен только владельцу портфеля.</div>
+        <div className="card stub-card">
+          Портфель «Без Б» ведёт только автор.<br />
+          Переключись на «Мой портфель» вверху — и веди свой: покупай, продавай,
+          контролируй рост.
+        </div>
       </div>
     );
   }
 
   return (
     <div className="content">
-      <div className="section-title" style={{ marginTop: 4 }}>Операции · только владелец</div>
+      <div className="section-title" style={{ marginTop: 4 }}>
+        {pf === "me" ? "Мой портфель · операции" : "Без Б · операции (владелец)"}
+      </div>
 
       <div className="actions-grid">
         {ACTIONS.map((a) => (
@@ -44,12 +53,17 @@ export default function TradeScreen({
         ))}
       </div>
 
-      <div className="disclaimer">Каждая сделка попадает в журнал и (если подключён) в канал.</div>
+      <div className="disclaimer">
+        {pf === "me"
+          ? "Это твой личный портфель — виден только тебе."
+          : "Сделки попадают в журнал и (если подключён) в канал."}
+      </div>
 
       {action && (
         <TradeSheet
           action={action}
           summary={summary}
+          pf={pf}
           onClose={() => setAction(null)}
           onDone={onDone}
         />

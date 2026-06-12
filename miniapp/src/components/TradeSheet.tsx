@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Summary } from "../data";
+import type { Summary, Pf } from "../data";
 import { apiBuy, apiSell, apiDeposit, apiWithdraw, apiDepositAsset } from "../data";
 
 export type Action = "buy" | "sell" | "deposit" | "withdraw";
@@ -20,10 +20,11 @@ const REASONS = [
 ];
 
 export default function TradeSheet({
-  action, summary, onClose, onDone,
+  action, summary, pf, onClose, onDone,
 }: {
   action: Action;
   summary: Summary;
+  pf: Pf;
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -44,20 +45,20 @@ export default function TradeSheet({
     setError(""); setBusy(true);
     try {
       if (action === "buy") {
-        await apiBuy({ ticker, amountUsdt: Number(amount), reason: reason || undefined });
+        await apiBuy(pf, { ticker, amountUsdt: Number(amount), reason: reason || undefined });
       } else if (action === "sell") {
-        await apiSell({ ticker, amountUsdt: sellAll ? null : Number(amount), reason: reason || undefined });
+        await apiSell(pf, { ticker, amountUsdt: sellAll ? null : Number(amount), reason: reason || undefined });
       } else if (action === "deposit") {
         if (depoMode === "asset") {
-          await apiDepositAsset({
+          await apiDepositAsset(pf, {
             ticker, amountUsdt: Number(amount),
             price: price ? Number(price) : undefined, reason: reason || undefined,
           });
         } else {
-          await apiDeposit({ rub: Number(amount), rate: Number(rate) });
+          await apiDeposit(pf, { rub: Number(amount), rate: Number(rate) });
         }
       } else {
-        await apiWithdraw({ amountUsdt: Number(amount) });
+        await apiWithdraw(pf, { amountUsdt: Number(amount) });
       }
       onDone();
       onClose();

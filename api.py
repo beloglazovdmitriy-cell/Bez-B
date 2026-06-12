@@ -25,6 +25,7 @@ from pydantic import BaseModel
 import config
 import portfolio
 import benchmark
+import storage
 
 app = FastAPI(title="Bez B API")
 
@@ -94,28 +95,41 @@ def _resolve_user(init_data: str | None) -> dict:
         if user:
             uid = user.get("id")
             return {
+                "id": uid,
                 "name": user.get("first_name", "Гость"),
                 "isAdmin": uid == config.ADMIN_ID,
                 "isPremium": False,  # позже — из подписки
             }
-    return {"name": "Дмитрий", "isAdmin": _DEV_ADMIN, "isPremium": False}
+    return {"id": config.ADMIN_ID if _DEV_ADMIN else None,
+            "name": "Дмитрий", "isAdmin": _DEV_ADMIN, "isPremium": False}
 
 
-def _require_admin(init_data: str | None) -> dict:
-    """Гейт для пишущих операций: только владелец портфеля."""
+def _ctx(p: str, init_data: str | None, write: bool = False) -> str:
+    """Выбрать портфель по запросу и установить его как текущий в storage.
+
+    p="bezb" — публичный (читать всем; писать только владельцу).
+    p="me"   — личный портфель пользователя (нужна авторизация Telegram).
+    Возвращает uid; кидает 401/403 при отсутствии прав."""
     user = _resolve_user(init_data)
-    if not user["isAdmin"]:
-        raise HTTPException(status_code=403, detail="Только владелец портфеля")
-    return user
+    if p == "me":
+        uid = user.get("id")
+        if uid is None:
+            raise HTTPException(status_code=401, detail="Откройте приложение через Telegram")
+        target = f"u{uid}"
+    else:  # bezb
+        if write and not user["isAdmin"]:
+            raise HTTPException(status_code=403,
+                                detail="Портфель «Без Б» может менять только владелец")
+        target = "bezb"
+    storage.use_uid(target)
+    return target
 
 
 # ───────────────────────── эндпойнты ─────────────────────────
 
 @app.get("/api/me")
 def me(x_init_data: str | None = Header(default=None)):
-    u = _resolve_user(x_init_data)
-    print(f"[me] has_init={bool(x_init_data)} -> {u}", flush=True)
-    return u
+    return _resolve_user(x_init_data)
 
 
 def _summary_payload() -> dict:
@@ -144,11 +158,13 @@ def _summary_payload() -> dict:
 
 
 @app.get("/api/summary")
-def summary():
+def summary(p: str = "bezb", x_init_data: str | None = Header(default=None)):
+    _ctx(p, x_init_data)
     return _summary_payload()
 
 
-# ──────────────── пишущие операции (только владелец) ────────────────
+# ──────────────── пишущие операции ────────────────
+# p="bezb" — только владелец; p="me" — свой портфель (любой авторизованный)
 
 class BuyReq(BaseModel):
     ticker: str
@@ -189,8 +205,8 @@ def _ok():
 
 
 @app.post("/api/buy")
-def api_buy(req: BuyReq, x_init_data: str | None = Header(default=None)):
-    _require_admin(x_init_data)
+def api_buy(req: BuyReq, p: str = "bezb", x_init_data: str | None = Header(default=None)):
+    _ctx(p, x_init_data, write=True)
     try:
         tx = portfolio.market_buy(req.ticker, req.amountUsdt)
         if req.reason:
@@ -201,8 +217,8 @@ def api_buy(req: BuyReq, x_init_data: str | None = Header(default=None)):
 
 
 @app.post("/api/sell")
-def api_sell(req: SellReq, x_init_data: str | None = Header(default=None)):
-    _require_admin(x_init_data)
+def api_sell(req: SellReq, p: str = "bezb", x_init_data: str | None = Header(default=None)):
+    _ctx(p, x_init_data, write=True)
     try:
         tx = portfolio.market_sell(req.ticker, req.amountUsdt)
         if req.reason:
@@ -213,8 +229,8 @@ def api_sell(req: SellReq, x_init_data: str | None = Header(default=None)):
 
 
 @app.post("/api/deposit")
-def api_deposit(req: DepositReq, x_init_data: str | None = Header(default=None)):
-    _require_admin(x_init_data)
+def api_deposit(req: DepositReq, p: str = "bezb", x_init_data: str | None = Header(default=None)):
+    _ctx(p, x_init_data, write=True)
     if req.rate <= 0:
         raise HTTPException(status_code=400, detail="Курс должен быть > 0")
     portfolio.add_deposit(req.rub / req.rate, req.rate)
@@ -222,15 +238,15 @@ def api_deposit(req: DepositReq, x_init_data: str | None = Header(default=None))
 
 
 @app.post("/api/withdraw")
-def api_withdraw(req: WithdrawReq, x_init_data: str | None = Header(default=None)):
-    _require_admin(x_init_data)
+def api_withdraw(req: WithdrawReq, p: str = "bezb", x_init_data: str | None = Header(default=None)):
+    _ctx(p, x_init_data, write=True)
     portfolio.add_withdraw(req.amountUsdt)
     return _ok()
 
 
 @app.post("/api/deposit_asset")
-def api_deposit_asset(req: AssetDepositReq, x_init_data: str | None = Header(default=None)):
-    _require_admin(x_init_data)
+def api_deposit_asset(req: AssetDepositReq, p: str = "bezb", x_init_data: str | None = Header(default=None)):
+    _ctx(p, x_init_data, write=True)
     try:
         tx = portfolio.add_asset_deposit(req.ticker, req.amountUsdt, req.price)
         if req.reason:
@@ -241,8 +257,8 @@ def api_deposit_asset(req: AssetDepositReq, x_init_data: str | None = Header(def
 
 
 @app.get("/api/history")
-def history():
-    import storage
+def history(p: str = "bezb", x_init_data: str | None = Header(default=None)):
+    _ctx(p, x_init_data)
     out = []
     for h in storage.load().get("history", []):
         out.append({
@@ -255,10 +271,11 @@ def history():
 
 
 @app.get("/api/journal")
-def journal():
+def journal(p: str = "bezb", x_init_data: str | None = Header(default=None)):
+    _ctx(p, x_init_data)
     s = portfolio.summary()
     pv = s["positions_value_usdt"] or 1
-    shares = {p.ticker: p.value_usd / pv * 100 for p in s["positions"]}
+    shares = {pos.ticker: pos.value_usd / pv * 100 for pos in s["positions"]}
     out = []
     for t in portfolio.get_operations():
         ttype = t.get("type") or t.get("side")
@@ -282,7 +299,8 @@ def journal():
 
 
 @app.get("/api/compare")
-def compare():
+def compare(p: str = "bezb", x_init_data: str | None = Header(default=None)):
+    _ctx(p, x_init_data)
     c = benchmark.compare()
     if not c:
         return []

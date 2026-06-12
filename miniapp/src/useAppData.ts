@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   loadSummary, loadHistory, loadBench, loadJournal, loadUser,
-  type Summary, type HistoryPoint, type BenchRow, type JournalEntry,
+  type Summary, type HistoryPoint, type BenchRow, type JournalEntry, type Pf,
 } from "./data";
 import {
   mockSummary, mockHistory, mockBench, mockJournal, mockUser,
@@ -19,7 +19,7 @@ export interface AppData {
 
 // Стартуем с мок-данных (чтобы не было мигания пустотой), затем подменяем
 // реальными из API. Если API недоступен — мок и остаётся.
-export function useAppData(): AppData {
+export function useAppData(pf: Pf): AppData {
   const [summary, setSummary] = useState<Summary>(mockSummary);
   const [history, setHistory] = useState<HistoryPoint[]>(mockHistory);
   const [bench, setBench] = useState<BenchRow[]>(mockBench);
@@ -27,18 +27,17 @@ export function useAppData(): AppData {
   const [user, setUser] = useState(mockUser);
   const [loading, setLoading] = useState(true);
 
-  // Грузим независимо: кто кто узнан владелец (user) и быстрые данные не должны
-  // ждать медленные котировки (/api/summary, /api/compare). Иначе вкладка «Сделки»
-  // (зависит от user.isAdmin) появляется только после самого медленного запроса.
+  // Грузим независимо (быстрые данные не ждут медленные котировки). user не зависит
+  // от портфеля; остальное перечитывается при смене выбранного портфеля pf.
   function refresh() {
     loadUser().then(setUser).catch(() => {});
-    loadSummary().then(setSummary).catch(() => {});
-    loadHistory().then(setHistory).catch(() => {});
-    loadBench().then(setBench).catch(() => {});
-    loadJournal().then(setJournal).catch(() => {}).finally(() => setLoading(false));
+    loadSummary(pf).then(setSummary).catch(() => {});
+    loadHistory(pf).then(setHistory).catch(() => {});
+    loadBench(pf).then(setBench).catch(() => {});
+    loadJournal(pf).then(setJournal).catch(() => {}).finally(() => setLoading(false));
   }
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => { refresh(); }, [pf]);
 
   return { summary, history, bench, journal, user, loading, reload: refresh };
 }
