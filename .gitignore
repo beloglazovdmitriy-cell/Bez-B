@@ -19,3 +19,8 @@ price_cache.json
 .venv/
 __pycache__/
 *.pyc
+
+# временные/служебные
+_seed.json
+_dump.py
+_*.py
