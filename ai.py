@@ -8,9 +8,13 @@
 import os
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+# можно указать совместимый прокси (напр. tokenator.top); пусто = офиц. Anthropic
+BASE_URL = os.getenv("ANTHROPIC_BASE_URL", "")
 MODEL = os.getenv("AI_MODEL", "claude-haiku-4-5")
 # для публичных постов берём модель посильнее (объём низкий — DCA раз в 2 недели)
 POST_MODEL = os.getenv("AI_POST_MODEL", "claude-sonnet-4-6")
+# некоторые прокси/модели включают «рассуждение» через extra_body.reasoning
+REASONING = os.getenv("AI_REASONING", "0") == "1"
 
 SYSTEM = (
     "Ты — аналитик проекта «Без Б — инвестиции без буллшита». "
@@ -51,13 +55,22 @@ def _format_portfolio(d: dict) -> str:
     return "\n".join(L)
 
 
-def _call(model: str, system: str, user: str, tools=None, max_tokens: int = 1200) -> str:
-    """Один вызов Claude. Обрабатывает pause_turn (для серверных инструментов
-    вроде web_search). Возвращает текст ответа."""
+def _client():
     import anthropic
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    kw = {"api_key": ANTHROPIC_API_KEY}
+    if BASE_URL:
+        kw["base_url"] = BASE_URL
+    return anthropic.Anthropic(**kw)
+
+
+def _call(model: str, system: str, user: str, tools=None, max_tokens: int = 1200) -> str:
+    """Один вызов Claude (или совместимого прокси). Обрабатывает pause_turn для
+    серверных инструментов вроде web_search. Возвращает текст ответа."""
+    client = _client()
     messages = [{"role": "user", "content": user}]
     kw = {"tools": tools} if tools else {}
+    if REASONING:
+        kw["extra_body"] = {"reasoning": {"enabled": True}}
     resp = None
     for _ in range(4):
         resp = client.messages.create(
@@ -67,7 +80,11 @@ def _call(model: str, system: str, user: str, tools=None, max_tokens: int = 1200
                         {"role": "assistant", "content": resp.content}]
             continue
         break
-    return "".join(b.text for b in (resp.content if resp else []) if b.type == "text").strip()
+    out = []
+    for b in (resp.content if resp else []):
+        if b.type == "text":
+            out.append(b.text)
+    return "".join(out).strip()
 
 
 def analyze_portfolio(data: dict) -> str:
@@ -133,9 +150,14 @@ SYSTEM_DIGEST = (
 
 
 def market_digest(context: str) -> str:
-    """Дайджест рынка с веб-поиском. context — краткий состав портфеля Без Б."""
-    user = ("Сделай свежий дайджест «Рынок за 60 секунд» на сегодня. "
-            "Учитывай состав портфеля Без Б, чтобы отметить, что для него важно:\n\n"
-            + context)
+    """Дайджест рынка. Пробуем с веб-поиском; если прокси/модель его не
+    поддерживает — собираем по знаниям модели (без выдуманной свежей конкретики)."""
+    user = ("Сделай дайджест «Рынок за 60 секунд». "
+            "Учитывай состав портфеля Без Б, отметь что для него важно:\n\n" + context)
     tools = [{"type": "web_search_20260209", "name": "web_search"}]
-    return _call(POST_MODEL, SYSTEM_DIGEST, user, tools=tools, max_tokens=1500)
+    try:
+        return _call(POST_MODEL, SYSTEM_DIGEST, user, tools=tools, max_tokens=1500)
+    except Exception:
+        sys2 = (SYSTEM_DIGEST + " Веб-поиск недоступен: опирайся на общие знания, "
+                "не выдумывай конкретные свежие цифры и даты.")
+        return _call(POST_MODEL, sys2, user, max_tokens=1500)
