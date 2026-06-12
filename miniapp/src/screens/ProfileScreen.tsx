@@ -1,6 +1,9 @@
+import { useState } from "react";
 import {
-  IconCrown, IconLock, IconCheck, IconShare, IconChannel, IconChevron,
+  IconCrown, IconLock, IconCheck, IconShare, IconChannel, IconChevron, IconAI,
 } from "../components/Icons";
+import AiSheet from "../components/AiSheet";
+import { apiDigest } from "../data";
 import { mockUser } from "../mock";
 
 type User = typeof mockUser;
@@ -14,6 +17,7 @@ const PREMIUM = [
 
 export default function ProfileScreen({ user }: { user: User }) {
   const u = user;
+  const [digest, setDigest] = useState(false);
   return (
     <div className="content">
       {/* профиль */}
@@ -50,6 +54,13 @@ export default function ProfileScreen({ user }: { user: User }) {
         )}
       </div>
 
+      {/* инструменты автора */}
+      {u.isAdmin && (
+        <button className="cta cta-ai" onClick={() => setDigest(true)}>
+          <IconAI size={18} /> Дайджест рынка → черновик в канал
+        </button>
+      )}
+
       {/* действия */}
       <div className="list">
         <button className="list-row">
@@ -65,6 +76,15 @@ export default function ProfileScreen({ user }: { user: User }) {
       </div>
 
       <div className="disclaimer">Не является индивидуальной инвестиционной рекомендацией.</div>
+
+      {digest && (
+        <AiSheet
+          title={<><IconAI size={20} /> Дайджест рынка</>}
+          load={apiDigest}
+          publishable
+          onClose={() => setDigest(false)}
+        />
+      )}
     </div>
   );
 }

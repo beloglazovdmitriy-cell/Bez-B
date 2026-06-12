@@ -300,16 +300,11 @@ def journal(p: str = "bezb", x_init_data: str | None = Header(default=None)):
     return out
 
 
-@app.post("/api/analyze")
-def analyze(p: str = "bezb", x_init_data: str | None = Header(default=None)):
-    """AI-разбор выбранного портфеля. 503, если ключ Claude не подключён."""
-    _ctx(p, x_init_data)
-    if not ai.available():
-        raise HTTPException(status_code=503,
-                            detail="AI-разбор появится после подключения ключа Claude API")
+def _ai_portfolio_data(p: str) -> dict:
+    """Компактные данные текущего портфеля (uid уже установлен) для AI."""
     s = portfolio.summary()
     pv = s["positions_value_usdt"] or 1
-    data = {
+    return {
         "label": "публичный портфель «Без Б»" if p != "me" else "ваш портфель",
         "totalUsd": s["total_value_usdt"], "totalRub": s["value_rub"],
         "profitRubPct": s["profit_rub_pct"], "profitUsdPct": s["profit_usdt_pct"],
@@ -320,8 +315,52 @@ def analyze(p: str = "bezb", x_init_data: str | None = Header(default=None)):
             "priceNow": round(pos.price_now, 4),
         } for pos in s["positions"]],
     }
+
+
+def _ai_or_503():
+    if not ai.available():
+        raise HTTPException(status_code=503,
+                            detail="AI появится после подключения ключа Claude API")
+
+
+@app.post("/api/analyze")
+def analyze(p: str = "bezb", x_init_data: str | None = Header(default=None)):
+    """AI-разбор выбранного портфеля."""
+    _ctx(p, x_init_data)
+    _ai_or_503()
     try:
-        text = ai.analyze_portfolio(data)
+        text = ai.analyze_portfolio(_ai_portfolio_data(p))
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"AI временно недоступен: {e}")
+    return {"text": text}
+
+
+@app.post("/api/scenarios")
+def scenarios(p: str = "bezb", x_init_data: str | None = Header(default=None)):
+    """AI-сценарии «что если рынок дёрнется» по выбранному портфелю."""
+    _ctx(p, x_init_data)
+    _ai_or_503()
+    try:
+        text = ai.scenarios(_ai_portfolio_data(p))
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"AI временно недоступен: {e}")
+    return {"text": text}
+
+
+@app.post("/api/digest")
+def digest(x_init_data: str | None = Header(default=None)):
+    """AI-дайджест рынка (веб-поиск) → черновик в канал. Только владелец."""
+    if not _resolve_user(x_init_data)["isAdmin"]:
+        raise HTTPException(status_code=403, detail="Только владелец")
+    _ai_or_503()
+    storage.use_uid("bezb")
+    s = portfolio.summary()
+    pv = s["positions_value_usdt"] or 1
+    ctx = (f"Баланс {s['value_rub']:,.0f}₽, индекс Без Б {s['index']:.0f} пт. "
+           "Позиции: " + (", ".join(f"{pos.ticker} {pos.value_usd / pv * 100:.0f}%"
+                                    for pos in s["positions"]) or "только кэш")).replace(",", " ")
+    try:
+        text = ai.market_digest(ctx)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI временно недоступен: {e}")
     return {"text": text}

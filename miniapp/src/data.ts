@@ -107,5 +107,29 @@ export async function apiTradeComment(pf: Pf, id: number): Promise<string> {
   return (await res.json()).text as string;
 }
 
+// AI-сценарии по портфелю → текст
+export async function apiScenarios(pf: Pf): Promise<string> {
+  const res = await fetch(`${API_BASE}/api/scenarios?p=${pf}`, {
+    method: "POST", headers: { "X-Init-Data": initData() },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error((err as any).detail || "AI недоступен");
+  }
+  return (await res.json()).text as string;
+}
+
+// AI-дайджест рынка (владелец) → текст-черновик
+export async function apiDigest(): Promise<string> {
+  const res = await fetch(`${API_BASE}/api/digest`, {
+    method: "POST", headers: { "X-Init-Data": initData() },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error((err as any).detail || "AI недоступен");
+  }
+  return (await res.json()).text as string;
+}
+
 // Опубликовать текст в канал (только владелец)
 export const apiPublish = (text: string) => postJSON("/api/publish", { text });

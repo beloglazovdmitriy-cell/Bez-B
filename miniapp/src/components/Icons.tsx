@@ -139,6 +139,16 @@ export const IconLogo = ({ size = 24, className }: P) => (
   </svg>
 );
 
+export const IconScenario = ({ size = 24, className }: P) => (
+  <svg {...base(size, className)}>
+    <circle cx="5" cy="12" r="2" />
+    <path d="M7 12h4" />
+    <path d="M11 12c4 0 4-6 8-6M11 12c4 0 4 6 8 6" />
+    <circle cx="20" cy="6" r="1.6" />
+    <circle cx="20" cy="18" r="1.6" />
+  </svg>
+);
+
 export const IconAI = ({ size = 24, className }: P) => (
   <svg {...base(size, className)}>
     <path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8z" />

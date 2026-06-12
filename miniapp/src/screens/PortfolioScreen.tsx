@@ -4,12 +4,14 @@ import CompositionDonut from "../components/CompositionDonut";
 import PositionsList from "../components/PositionsList";
 import CopySheet from "../components/CopySheet";
 import AnalysisSheet from "../components/AnalysisSheet";
-import { IconCopy, IconAI } from "../components/Icons";
-import type { Summary, Pf } from "../data";
+import AiSheet from "../components/AiSheet";
+import { IconCopy, IconAI, IconScenario } from "../components/Icons";
+import { apiScenarios, type Summary, type Pf } from "../data";
 
 export default function PortfolioScreen({ summary, pf }: { summary: Summary; pf: Pf }) {
   const [copy, setCopy] = useState(false);
   const [analyze, setAnalyze] = useState(false);
+  const [scen, setScen] = useState(false);
   const hasPositions = summary.positions.length > 0;
   return (
     <div className="content">
@@ -21,6 +23,10 @@ export default function PortfolioScreen({ summary, pf }: { summary: Summary; pf:
           <button className="cta cta-ai" onClick={() => setAnalyze(true)}>
             <IconAI size={18} />
             AI-разбор портфеля
+          </button>
+          <button className="cta cta-ghost" onClick={() => setScen(true)}>
+            <IconScenario size={18} />
+            Сценарии «если рынок дёрнется»
           </button>
           {pf === "bezb" && (
             <button className="cta cta-ghost" onClick={() => setCopy(true)}>
@@ -46,6 +52,13 @@ export default function PortfolioScreen({ summary, pf }: { summary: Summary; pf:
 
       {copy && <CopySheet summary={summary} onClose={() => setCopy(false)} />}
       {analyze && <AnalysisSheet pf={pf} onClose={() => setAnalyze(false)} />}
+      {scen && (
+        <AiSheet
+          title={<><IconScenario size={20} /> Сценарии</>}
+          load={() => apiScenarios(pf)}
+          onClose={() => setScen(false)}
+        />
+      )}
     </div>
   );
 }
