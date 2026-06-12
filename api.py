@@ -113,7 +113,9 @@ def _require_admin(init_data: str | None) -> dict:
 
 @app.get("/api/me")
 def me(x_init_data: str | None = Header(default=None)):
-    return _resolve_user(x_init_data)
+    u = _resolve_user(x_init_data)
+    print(f"[me] has_init={bool(x_init_data)} -> {u}", flush=True)
+    return u
 
 
 def _summary_payload() -> dict:
