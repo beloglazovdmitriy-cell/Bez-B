@@ -35,8 +35,12 @@ body {
 }
 
 .header {
-  /* верхний отступ учитывает чёлку/статус-бар в полноэкранном Telegram */
-  padding: calc(18px + var(--tg-top, 0px)) 16px 6px;
+  /* верхний отступ учитывает чёлку/статус-бар в полноэкранном Telegram.
+     берём максимум из инсета Telegram и системного env() + базовый запас */
+  padding-top: calc(16px + max(var(--tg-top, 0px), env(safe-area-inset-top, 0px)));
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-bottom: 6px;
 }
 .brand {
   font-weight: 800;

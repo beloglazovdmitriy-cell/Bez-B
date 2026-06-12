@@ -10,10 +10,12 @@ if (tg) {
   tg.expand();                                  // на всю высоту (не «шторкой»)
   try { tg.requestFullscreen?.(); } catch { /* старые клиенты не поддерживают */ }
   try { tg.disableVerticalSwipes?.(); } catch { /* чтобы свайп не закрывал */ }
-  // безопасные отступы под чёлку/статус-бар в полноэкранном режиме
+  // безопасные отступы под чёлку/статус-бар в полноэкранном режиме.
+  // Полный верхний отступ = чёлка устройства + панель управления Telegram.
   const apply = () => {
-    const top = tg.contentSafeAreaInset?.top ?? tg.safeAreaInset?.top ?? 0;
-    document.documentElement.style.setProperty("--tg-top", `${top}px`);
+    const dev = tg.safeAreaInset?.top ?? 0;
+    const ctl = tg.contentSafeAreaInset?.top ?? 0;
+    document.documentElement.style.setProperty("--tg-top", `${dev + ctl}px`);
   };
   apply();
   tg.onEvent?.("safeAreaChanged", apply);

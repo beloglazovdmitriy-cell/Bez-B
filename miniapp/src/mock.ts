@@ -3,6 +3,7 @@
 
 export interface Position {
   ticker: string;
+  qty: number;
   valueUsd: number;
   avgPrice: number;
   priceNow: number;
@@ -28,11 +29,11 @@ export const mockSummary: Summary = {
   index: 118.3,
   cashUsdt: 612.4,
   positions: [
-    { ticker: "BTC", valueUsd: 2220.5, avgPrice: 61650, priceNow: 79010, profitPct: 28.1, color: "#f7931a" },
-    { ticker: "ETH", valueUsd: 1010.0, avgPrice: 1628, priceNow: 1726, profitPct: 6.0, color: "#627eea" },
-    { ticker: "TSLA", valueUsd: 980.3, avgPrice: 381.5, priceNow: 366.0, profitPct: -4.1, color: "#e82127" },
-    { ticker: "NVDA", valueUsd: 760.0, avgPrice: 118.0, priceNow: 131.2, profitPct: 11.2, color: "#76b900" },
-    { ticker: "GDX", valueUsd: 755.5, avgPrice: 73.8, priceNow: 79.4, profitPct: 7.6, color: "#d4af37" },
+    { ticker: "BTC", qty: 0.0281, valueUsd: 2220.5, avgPrice: 61650, priceNow: 79010, profitPct: 28.1, color: "#f7931a" },
+    { ticker: "ETH", qty: 0.585, valueUsd: 1010.0, avgPrice: 1628, priceNow: 1726, profitPct: 6.0, color: "#627eea" },
+    { ticker: "TSLA", qty: 2.68, valueUsd: 980.3, avgPrice: 381.5, priceNow: 366.0, profitPct: -4.1, color: "#e82127" },
+    { ticker: "NVDA", qty: 5.79, valueUsd: 760.0, avgPrice: 118.0, priceNow: 131.2, profitPct: 11.2, color: "#76b900" },
+    { ticker: "GDX", qty: 9.51, valueUsd: 755.5, avgPrice: 73.8, priceNow: 79.4, profitPct: 7.6, color: "#d4af37" },
   ],
 };
 
@@ -68,17 +69,18 @@ export interface JournalEntry {
   date: string;
   side: "buy" | "sell";
   ticker: string;
+  qty: number;
   amountUsd: number;
   price: number;
   sharePct: number;
   reason: string;
 }
 export const mockJournal: JournalEntry[] = [
-  { date: "10.06", side: "buy", ticker: "BTC", amountUsd: 300, price: 79010, sharePct: 35, reason: "Плановая закупка (DCA)" },
-  { date: "06.06", side: "buy", ticker: "NVDA", amountUsd: 250, price: 131.2, sharePct: 12, reason: "Долгосрочный тренд" },
-  { date: "27.05", side: "sell", ticker: "TSLA", amountUsd: 200, price: 366.0, sharePct: 16, reason: "Ребаланс портфеля" },
-  { date: "20.05", side: "buy", ticker: "ETH", amountUsd: 250, price: 1726, sharePct: 16, reason: "Докупка на просадке" },
-  { date: "13.05", side: "buy", ticker: "GDX", amountUsd: 300, price: 79.4, sharePct: 12, reason: "Свободный кэш" },
+  { date: "10.06", side: "buy", ticker: "BTC", qty: 0.0038, amountUsd: 300, price: 79010, sharePct: 35, reason: "Плановая закупка (DCA)" },
+  { date: "06.06", side: "buy", ticker: "NVDA", qty: 1.905, amountUsd: 250, price: 131.2, sharePct: 12, reason: "Долгосрочный тренд" },
+  { date: "27.05", side: "sell", ticker: "TSLA", qty: 0.546, amountUsd: 200, price: 366.0, sharePct: 16, reason: "Ребаланс портфеля" },
+  { date: "20.05", side: "buy", ticker: "ETH", qty: 0.145, amountUsd: 250, price: 1726, sharePct: 16, reason: "Докупка на просадке" },
+  { date: "13.05", side: "buy", ticker: "GDX", qty: 3.78, amountUsd: 300, price: 79.4, sharePct: 12, reason: "Свободный кэш" },
 ];
 
 // Фолбэк-пользователь, когда API недоступен (напр. на GitHub Pages без бэкенда).

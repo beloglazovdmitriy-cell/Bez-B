@@ -1,4 +1,5 @@
 import { IconArrowDown, IconArrowUp } from "../components/Icons";
+import { fmtQty, fmtPrice } from "../components/PositionsList";
 import type { JournalEntry } from "../data";
 
 const fmt = (n: number) =>
@@ -34,7 +35,7 @@ export default function JournalScreen({ journal }: { journal: JournalEntry[] }) 
                   <span className="entry-date">{e.date}</span>
                 </div>
                 <div className="entry-sub">
-                  по ${fmt(e.price)} · доля в портфеле {e.sharePct}%
+                  {fmtQty(e.qty)} {e.ticker} по ${fmtPrice(e.price)} · доля {e.sharePct}%
                 </div>
                 {e.reason && <div className="entry-reason">{e.reason}</div>}
               </div>

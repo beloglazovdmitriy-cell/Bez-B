@@ -123,9 +123,10 @@ def _summary_payload() -> dict:
     positions = [
         {
             "ticker": p.ticker,
+            "qty": round(p.qty, 8),
             "valueUsd": round(p.value_usd, 2),
-            "avgPrice": round(p.avg_price_usdt, 2),
-            "priceNow": round(p.price_now, 2),
+            "avgPrice": round(p.avg_price_usdt, 4),
+            "priceNow": round(p.price_now, 4),
             "profitPct": round(p.profit_pct, 1),
             "color": _color(p.ticker, i),
         }
@@ -269,8 +270,9 @@ def journal():
             "date": datetime.fromtimestamp(t["ts"]).strftime("%d.%m"),
             "side": "sell" if ttype == "sell" else "buy",
             "ticker": t["ticker"],
+            "qty": round(t["qty"], 8),
             "amountUsd": round(amount),
-            "price": round(price, 2),
+            "price": round(price, 6),
             "sharePct": round(shares.get(t["ticker"], 0)),
             "reason": t.get("reason", ""),
         })
