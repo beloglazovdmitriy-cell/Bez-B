@@ -87,8 +87,26 @@ def _fetch_binance(base: str):
     return float(resp.json()["price"])
 
 
+# Yahoo (yfinance) недоступен с части серверов и висит по 30с. Жёсткий короткий
+# таймаут через curl_cffi-сессию, чтобы не блокировать ответы — акции тогда берутся
+# из кэша последних известных цен, а не из 30-секундного зависания.
+_YF_TIMEOUT = float(os.getenv("YF_TIMEOUT", "7"))
+try:
+    from curl_cffi import requests as _cffi
+    _yf_session = _cffi.Session(impersonate="chrome", timeout=_YF_TIMEOUT)
+except Exception:
+    _yf_session = None
+
+
+def _ticker(symbol: str):
+    try:
+        return yf.Ticker(symbol, session=_yf_session) if _yf_session else yf.Ticker(symbol)
+    except TypeError:
+        return yf.Ticker(symbol)
+
+
 def _fetch_yfinance(symbol: str):
-    yt = yf.Ticker(symbol)
+    yt = _ticker(symbol)
     try:
         p = yt.fast_info.get("last_price")
         if _isnum(p):
@@ -183,7 +201,7 @@ def _binance_history(base: str, start_iso: str) -> dict:
 
 
 def _yf_history(symbol: str, start_iso: str) -> dict:
-    hist = yf.Ticker(symbol).history(start=start_iso)
+    hist = _ticker(symbol).history(start=start_iso)
     out = {}
     for idx, row in hist.iterrows():
         c = row["Close"]

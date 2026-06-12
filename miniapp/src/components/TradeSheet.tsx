@@ -1,6 +1,10 @@
 import { useState } from "react";
 import type { Summary, Pf } from "../data";
 import { apiBuy, apiSell, apiDeposit, apiWithdraw, apiDepositAsset } from "../data";
+import { fmtQty } from "./PositionsList";
+
+const money = (n: number) =>
+  n.toLocaleString("ru-RU", { maximumFractionDigits: 0 }).replace(/,/g, " ");
 
 export type Action = "buy" | "sell" | "deposit" | "withdraw";
 
@@ -40,6 +44,7 @@ export default function TradeSheet({
 
   const assetDepo = action === "deposit" && depoMode === "asset";
   const needsReason = action === "buy" || action === "sell";  // у пополнения причины нет
+  const sellPos = summary.positions.find((p) => p.ticker === ticker);
 
   async function submit() {
     setError(""); setBusy(true);
@@ -102,11 +107,20 @@ export default function TradeSheet({
           </Field>
         )}
         {action === "sell" && (
-          <Field label="Позиция">
+          <Field label="Что продаём — доступно">
             {summary.positions.length === 0 ? (
               <div className="muted-note">Открытых позиций нет.</div>
             ) : (
-              <Chips items={summary.positions.map((p) => p.ticker)} active={ticker} onPick={setTicker} />
+              <div className="sell-list">
+                {summary.positions.map((p) => (
+                  <button key={p.ticker}
+                    className={`sell-row ${ticker === p.ticker ? "on" : ""}`}
+                    onClick={() => { setTicker(p.ticker); setSellAll(false); setAmount(""); }}>
+                    <span className="sell-tk">{p.ticker}</span>
+                    <span className="sell-meta">{fmtQty(p.qty)} шт · ${money(p.valueUsd)}</span>
+                  </button>
+                ))}
+              </div>
             )}
           </Field>
         )}
@@ -144,7 +158,9 @@ export default function TradeSheet({
               value={amount} onChange={(e) => setAmount(e.target.value)} />
           </Field>
         ) : (
-          <Field label="Сумма, USDT">
+          <Field label={action === "sell" && sellPos
+            ? `Сумма USDT (в позиции $${money(sellPos.valueUsd)})`
+            : "Сумма, USDT"}>
             <input className="inp" inputMode="decimal" placeholder="100"
               value={amount} onChange={(e) => setAmount(e.target.value)} disabled={action === "sell" && sellAll} />
             <div className="chips">
@@ -154,7 +170,7 @@ export default function TradeSheet({
               ))}
               {action === "sell" && (
                 <button className={`chip ${sellAll ? "on" : ""}`} onClick={() => setSellAll(!sellAll)}>
-                  Продать всё
+                  {sellPos ? `Всё ($${money(sellPos.valueUsd)})` : "Продать всё"}
                 </button>
               )}
             </div>

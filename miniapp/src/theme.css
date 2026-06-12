@@ -291,6 +291,16 @@ body {
   padding: 9px; border-radius: 9px; font-size: 14px; font-weight: 600; cursor: pointer; }
 .seg-btn.on { background: var(--surface-2); color: var(--accent); }
 
+/* список позиций при продаже */
+.sell-list { display: flex; flex-direction: column; gap: 6px; }
+.sell-row { display: flex; align-items: center; justify-content: space-between;
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 12px; padding: 11px 13px; cursor: pointer; color: var(--text); }
+.sell-row.on { border-color: var(--accent); background: var(--surface-2); }
+.sell-tk { font-weight: 700; }
+.sell-meta { color: var(--muted); font-size: 13px; }
+.sell-row.on .sell-meta { color: var(--accent); }
+
 /* ── Калькулятор ── */
 .calc-inputs { display: flex; flex-direction: column; gap: 14px; }
 .calc-row .field-label { margin-bottom: 7px; }
