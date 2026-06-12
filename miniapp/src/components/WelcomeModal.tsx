@@ -1,4 +1,4 @@
-import { IconBitcoin } from "./Icons";
+import { IconLogo } from "./Icons";
 
 // Приветственное окно при первом открытии (флаг в localStorage).
 export default function WelcomeModal({ onClose }: { onClose: () => void }) {
@@ -6,7 +6,7 @@ export default function WelcomeModal({ onClose }: { onClose: () => void }) {
     <div className="sheet-overlay welcome-overlay" onClick={onClose}>
       <div className="welcome" onClick={(e) => e.stopPropagation()}>
         <div className="welcome-logo">
-          Bez <IconBitcoin size={30} className="brand-btc" />
+          Bez <IconLogo size={30} className="brand-btc" />
         </div>
         <div className="welcome-sub">инвестиции без буллшита</div>
 

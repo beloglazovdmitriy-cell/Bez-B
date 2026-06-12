@@ -123,6 +123,22 @@ export const IconChevron = ({ size = 24, className }: P) => (
   </svg>
 );
 
+// Бренд-знак «Без Б»: монета цвета бренда с кириллической «Б» и вертикальными
+// штрихами в духе ₿ — узнаваемо по-крипто, но это «Без Б», а не биткоин.
+export const IconLogo = ({ size = 24, className }: P) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" className={className}>
+    <circle cx="12" cy="12" r="11.5" fill="#26a69a" />
+    <g fill="#0e1117">
+      <rect x="9.0" y="3.6" width="1.5" height="3.2" rx="0.5" />
+      <rect x="12.2" y="3.6" width="1.5" height="3.2" rx="0.5" />
+      <rect x="9.0" y="17.2" width="1.5" height="3.2" rx="0.5" />
+      <rect x="12.2" y="17.2" width="1.5" height="3.2" rx="0.5" />
+      <text x="11.6" y="12.6" textAnchor="middle" dominantBaseline="central"
+        fontFamily="Arial, Helvetica, sans-serif" fontSize="13.5" fontWeight="700">Б</text>
+    </g>
+  </svg>
+);
+
 export const IconCalc = ({ size = 24, className }: P) => (
   <svg {...base(size, className)}>
     <rect x="4" y="3" width="16" height="18" rx="2" />

@@ -11,6 +11,17 @@ function initData(): string {
   return (window as any).Telegram?.WebApp?.initData || "";
 }
 
+// id владельца (публичный, не секрет) — чтобы узнавать админа на клиенте,
+// когда API недоступен (напр. Pages без бэкенда). Реальная защита операций —
+// на сервере по подписанному initData.
+const ADMIN_ID = Number(import.meta.env.VITE_ADMIN_ID ?? 503720103);
+
+function fallbackUser() {
+  const u = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
+  if (u) return { name: u.first_name || "Гость", isAdmin: u.id === ADMIN_ID, isPremium: false };
+  return mockUser;
+}
+
 // База API. В dev пусто → работает vite-прокси /api. На GitHub Pages задаётся
 // через VITE_API_BASE (адрес задеплоенного бэкенда). Если не задано и /api нет —
 // getJSON отдаёт мок (фолбэк), и приложение всё равно живёт.
@@ -30,7 +41,7 @@ export const loadSummary = () => getJSON("/api/summary", mockSummary);
 export const loadHistory = () => getJSON("/api/history", mockHistory);
 export const loadBench = () => getJSON("/api/compare", mockBench);
 export const loadJournal = () => getJSON("/api/journal", mockJournal);
-export const loadUser = () => getJSON("/api/me", mockUser);
+export const loadUser = () => getJSON("/api/me", fallbackUser());
 
 // ── пишущие операции (только владелец; бэкенд проверяет initData) ──
 async function postJSON(path: string, body: unknown): Promise<void> {

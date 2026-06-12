@@ -1,7 +1,7 @@
 import { useState } from "react";
 import BottomNav, { type Tab } from "./components/BottomNav";
 import WelcomeModal from "./components/WelcomeModal";
-import { IconBitcoin } from "./components/Icons";
+import { IconLogo } from "./components/Icons";
 import PortfolioScreen from "./screens/PortfolioScreen";
 import ChartScreen from "./screens/ChartScreen";
 import JournalScreen from "./screens/JournalScreen";
@@ -25,7 +25,7 @@ export default function App() {
       {welcome && <WelcomeModal onClose={closeWelcome} />}
       <header className="header">
         <div className="brand">
-          Bez <IconBitcoin size={26} className="brand-btc" />
+          Bez <IconLogo size={26} className="brand-btc" />
         </div>
         <div className="tagline">Публичный портфель · инвестиции без буллшита</div>
       </header>

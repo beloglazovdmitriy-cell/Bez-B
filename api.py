@@ -162,6 +162,12 @@ class AssetDepositReq(BaseModel):
 
 
 def _ok():
+    # фиксируем точку стоимости на каждой операции — чтобы график роста и индекс
+    # наполнялись по ходу сделок (а не только недельными автоснимками)
+    try:
+        portfolio.record_snapshot()
+    except Exception:
+        pass
     return {"ok": True, "summary": _summary_payload()}
 
 

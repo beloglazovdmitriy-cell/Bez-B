@@ -35,7 +35,8 @@ body {
 }
 
 .header {
-  padding: 18px 16px 6px;
+  /* верхний отступ учитывает чёлку/статус-бар в полноэкранном Telegram */
+  padding: calc(18px + var(--tg-top, 0px)) 16px 6px;
 }
 .brand {
   font-weight: 800;
@@ -131,6 +132,7 @@ body {
 .stub { text-align: center; color: var(--muted); padding: 60px 20px; }
 .stub .big { font-size: 40px; margin-bottom: 10px; }
 .stub-card { text-align: center; color: var(--muted); line-height: 1.6; padding: 28px 18px; }
+.chart-empty { color: var(--muted); font-size: 13px; line-height: 1.5; padding: 24px 8px; text-align: center; }
 
 /* ── Динамика: периоды и графики ── */
 .periods { display: flex; gap: 8px; }
