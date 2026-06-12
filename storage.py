@@ -1,9 +1,24 @@
-"""Хранение данных портфеля в JSON-файле."""
+"""Хранение данных портфеля.
+
+Бэкенд — SQLite (файл portfolio.db). Весь документ портфеля хранится как один
+JSON в одной строке таблицы kv. Так мы:
+  • сохраняем прежний интерфейс load()/save(data)/next_trade_id(data) —
+    остальной код (bot.py, portfolio.py, benchmark.py, charts.py) не меняется;
+  • получаем безопасную одновременную работу двух процессов (бот + API):
+    SQLite в режиме WAL разрешает читателей во время записи, а каждая запись
+    атомарна. JSON-файл с tmp+replace такого не гарантировал.
+
+При первом запуске данные автоматически переносятся из старого
+portfolio_data.json (он остаётся как резервная копия).
+"""
 import json
 import os
+import sqlite3
 import threading
+
 from config import DATA_FILE, DEFAULT_FAVORITES
 
+_DB_FILE = os.path.join(os.path.dirname(DATA_FILE), "portfolio.db")
 _lock = threading.Lock()
 
 _DEFAULT = {
@@ -14,14 +29,44 @@ _DEFAULT = {
 }
 
 
+def _connect():
+    conn = sqlite3.connect(_DB_FILE, timeout=30)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=30000")
+    return conn
+
+
+def _ensure(conn):
+    """Создать таблицу и при первом запуске перенести данные из JSON."""
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS kv (id INTEGER PRIMARY KEY CHECK (id = 1), doc TEXT NOT NULL)")
+    row = conn.execute("SELECT doc FROM kv WHERE id = 1").fetchone()
+    if row is not None:
+        return
+    # миграция: берём старый portfolio_data.json, иначе дефолт
+    data = json.loads(json.dumps(_DEFAULT))
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r", encoding="utf-8-sig") as f:
+                data = json.load(f)
+        except Exception:
+            pass
+    conn.execute("INSERT INTO kv (id, doc) VALUES (1, ?)",
+                 (json.dumps(data, ensure_ascii=False),))
+    conn.commit()
+
+
 def load():
-    """Загрузить данные портфеля (с дефолтами, если файла нет)."""
-    if not os.path.exists(DATA_FILE):
-        return json.loads(json.dumps(_DEFAULT))
-    # utf-8-sig корректно проглатывает BOM, если файл вдруг записан с меткой
-    with open(DATA_FILE, "r", encoding="utf-8-sig") as f:
-        data = json.load(f)
-    # подстраховка на случай старого формата
+    """Загрузить данные портфеля (с дефолтами по ключам)."""
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure(conn)
+            row = conn.execute("SELECT doc FROM kv WHERE id = 1").fetchone()
+            data = json.loads(row[0])
+        finally:
+            conn.close()
+    # подстраховка на случай старого/частичного документа
     data.setdefault("trades", [])
     data.setdefault("history", [])
     data.setdefault("favorites", list(DEFAULT_FAVORITES))
@@ -30,12 +75,18 @@ def load():
 
 
 def save(data):
-    """Сохранить данные портфеля атомарно."""
+    """Сохранить данные портфеля (атомарно, одной записью)."""
     with _lock:
-        tmp = DATA_FILE + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        os.replace(tmp, DATA_FILE)
+        conn = _connect()
+        try:
+            _ensure(conn)
+            conn.execute(
+                "INSERT INTO kv (id, doc) VALUES (1, ?) "
+                "ON CONFLICT(id) DO UPDATE SET doc = excluded.doc",
+                (json.dumps(data, ensure_ascii=False),))
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def next_trade_id(data):

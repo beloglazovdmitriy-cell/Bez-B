@@ -81,5 +81,7 @@ export const mockJournal: JournalEntry[] = [
   { date: "13.05", side: "buy", ticker: "GDX", amountUsd: 300, price: 79.4, sharePct: 12, reason: "Свободный кэш" },
 ];
 
-// Пользователь прототипа (в реальности — из Telegram initData).
-export const mockUser = { name: "Дмитрий", isAdmin: true, isPremium: false };
+// Фолбэк-пользователь, когда API недоступен (напр. на GitHub Pages без бэкенда).
+// isAdmin=false → публичная версия не показывает раздел «Сделки». Реальный
+// статус приходит из /api/me (по Telegram initData), в dev — владелец.
+export const mockUser = { name: "Гость", isAdmin: false, isPremium: false };

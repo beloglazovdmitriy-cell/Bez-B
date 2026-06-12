@@ -1,21 +1,27 @@
+import { useState } from "react";
 import { IconArrowDown, IconArrowUp, IconWallet, IconTrade } from "../components/Icons";
+import TradeSheet, { type Action } from "../components/TradeSheet";
 import { mockUser } from "../mock";
+import type { Summary } from "../data";
 
 type User = typeof mockUser;
 
-const ACTIONS = [
+const ACTIONS: { id: Action; label: string; sub: string; Icon: typeof IconTrade; tone: string }[] = [
   { id: "buy", label: "Купить", sub: "актив за USDT", Icon: IconTrade, tone: "accent" },
   { id: "sell", label: "Продать", sub: "актив в USDT", Icon: IconArrowUp, tone: "red" },
-  { id: "depo", label: "Пополнить", sub: "₽ → USDT", Icon: IconArrowDown, tone: "accent" },
-  { id: "wd", label: "Вывести", sub: "USDT из портфеля", Icon: IconWallet, tone: "muted" },
+  { id: "deposit", label: "Пополнить", sub: "₽ → USDT", Icon: IconArrowDown, tone: "accent" },
+  { id: "withdraw", label: "Вывести", sub: "USDT из портфеля", Icon: IconWallet, tone: "muted" },
 ];
 
-const REASONS = [
-  "Плановая закупка (DCA)", "Докупка на просадке", "Ребаланс портфеля",
-  "Долгосрочный тренд", "Свободный кэш", "Фиксация прибыли",
-];
+export default function TradeScreen({
+  user, summary, onDone,
+}: {
+  user: User;
+  summary: Summary;
+  onDone: () => void;
+}) {
+  const [action, setAction] = useState<Action | null>(null);
 
-export default function TradeScreen({ user }: { user: User }) {
   if (!user.isAdmin) {
     return (
       <div className="content">
@@ -30,7 +36,7 @@ export default function TradeScreen({ user }: { user: User }) {
 
       <div className="actions-grid">
         {ACTIONS.map((a) => (
-          <button className={`action ${a.tone}`} key={a.id}>
+          <button className={`action ${a.tone}`} key={a.id} onClick={() => setAction(a.id)}>
             <span className="action-ic"><a.Icon size={22} /></span>
             <span className="action-label">{a.label}</span>
             <span className="action-sub">{a.sub}</span>
@@ -38,18 +44,16 @@ export default function TradeScreen({ user }: { user: User }) {
         ))}
       </div>
 
-      <div className="card">
-        <div className="section-title" style={{ marginTop: 0, marginBottom: 8 }}>
-          Причина сделки → в журнал и пост в канал
-        </div>
-        <div className="chips">
-          {REASONS.map((r) => (
-            <span className="chip" key={r}>{r}</span>
-          ))}
-        </div>
-      </div>
+      <div className="disclaimer">Каждая сделка попадает в журнал и (если подключён) в канал.</div>
 
-      <div className="disclaimer">Каждая сделка публикуется в канал автоматически.</div>
+      {action && (
+        <TradeSheet
+          action={action}
+          summary={summary}
+          onClose={() => setAction(null)}
+          onDone={onDone}
+        />
+      )}
     </div>
   );
 }

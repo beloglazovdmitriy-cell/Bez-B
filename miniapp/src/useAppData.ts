@@ -14,6 +14,7 @@ export interface AppData {
   journal: JournalEntry[];
   user: typeof mockUser;
   loading: boolean;
+  reload: () => void;
 }
 
 // Стартуем с мок-данных (чтобы не было мигания пустотой), затем подменяем
@@ -26,16 +27,15 @@ export function useAppData(): AppData {
   const [user, setUser] = useState(mockUser);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let alive = true;
-    Promise.all([loadSummary(), loadHistory(), loadBench(), loadJournal(), loadUser()])
+  function refresh() {
+    return Promise.all([loadSummary(), loadHistory(), loadBench(), loadJournal(), loadUser()])
       .then(([s, h, b, j, u]) => {
-        if (!alive) return;
         setSummary(s); setHistory(h); setBench(b); setJournal(j); setUser(u);
       })
-      .finally(() => alive && setLoading(false));
-    return () => { alive = false; };
-  }, []);
+      .finally(() => setLoading(false));
+  }
 
-  return { summary, history, bench, journal, user, loading };
+  useEffect(() => { refresh(); }, []);
+
+  return { summary, history, bench, journal, user, loading, reload: () => { refresh(); } };
 }

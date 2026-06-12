@@ -24,7 +24,7 @@ export default function App() {
       {tab === "portfolio" && <PortfolioScreen summary={data.summary} />}
       {tab === "chart" && <ChartScreen history={data.history} bench={data.bench} />}
       {tab === "journal" && <JournalScreen journal={data.journal} />}
-      {tab === "trade" && <TradeScreen user={data.user} />}
+      {tab === "trade" && <TradeScreen user={data.user} summary={data.summary} onDone={data.reload} />}
       {tab === "profile" && <ProfileScreen user={data.user} />}
 
       <BottomNav active={tab} onChange={setTab} />

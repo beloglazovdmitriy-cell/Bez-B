@@ -187,7 +187,7 @@ body {
 
 .chips { display: flex; flex-wrap: wrap; gap: 7px; }
 .chip { font-size: 12.5px; color: var(--text); background: var(--surface-2);
-  border: 1px solid var(--border); border-radius: 16px; padding: 6px 11px; }
+  border: 1px solid var(--border); border-radius: 16px; padding: 6px 11px; cursor: pointer; }
 
 /* ── Профиль / подписка ── */
 .profile-card { display: flex; align-items: center; gap: 14px; }
@@ -215,3 +215,43 @@ body {
   display: flex; align-items: center; justify-content: center; background: var(--surface-2); }
 .lr-ic.accent { color: var(--accent); }
 .lr-chev { margin-left: auto; color: var(--muted); }
+
+/* ── Модалка сделки (bottom sheet) ── */
+.sheet-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  display: flex; align-items: flex-end; justify-content: center; z-index: 50;
+  animation: fade 0.15s ease;
+}
+.sheet {
+  width: 100%; max-width: 480px; background: var(--surface);
+  border-top-left-radius: 20px; border-top-right-radius: 20px;
+  border: 1px solid var(--border); padding: 8px 16px 20px;
+  max-height: 88vh; overflow-y: auto;
+  animation: slideUp 0.2s ease;
+}
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(40px); } to { transform: translateY(0); } }
+.sheet-grip { width: 40px; height: 4px; border-radius: 2px; background: var(--border);
+  margin: 6px auto 12px; }
+.sheet-title { font-weight: 800; font-size: 18px; margin-bottom: 14px; }
+.sheet-cancel { width: 100%; background: none; border: none; color: var(--muted);
+  padding: 12px; margin-top: 8px; font-size: 14px; cursor: pointer; }
+
+.field { margin-bottom: 16px; }
+.field-label { font-size: 12.5px; color: var(--muted); margin-bottom: 7px; }
+.inp {
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 12px; padding: 13px 14px; color: var(--text); font-size: 16px;
+  outline: none;
+}
+.inp:focus { border-color: var(--accent-dim); }
+.inp:disabled { opacity: 0.5; }
+.muted-note { color: var(--muted); font-size: 13.5px; padding: 4px 0; }
+
+/* активный чип в форме */
+.chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
+.chips.wrap { max-height: none; }
+.chip.on { background: var(--accent); color: #04140f; border-color: var(--accent); font-weight: 700; }
+
+.form-error { color: var(--red); font-size: 13.5px; margin: 4px 0 12px; }
+.cta:disabled { opacity: 0.45; cursor: default; }

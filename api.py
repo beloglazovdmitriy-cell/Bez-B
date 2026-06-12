@@ -14,17 +14,24 @@
 import hashlib
 import hmac
 import json
+import os
 from datetime import datetime
 from urllib.parse import parse_qsl
 
-from fastapi import FastAPI, Header
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 import config
 import portfolio
 import benchmark
 
 app = FastAPI(title="Bez B API")
+
+# В dev без initData считаем клиента владельцем (удобно тестировать в браузере).
+# Перед публичным деплоем задать API_DEV_ADMIN=0 — тогда писать сможет только
+# тот, чей валидный initData даёт id == ADMIN_ID.
+_DEV_ADMIN = os.getenv("API_DEV_ADMIN", "1") == "1"
 
 # В dev фронт живёт на :5173, API на :8000 — разрешаем CORS.
 app.add_middleware(
@@ -67,7 +74,7 @@ def _verify_init_data(init_data: str) -> dict | None:
 
 
 def _resolve_user(init_data: str | None) -> dict:
-    """Кто перед нами. В dev без initData — считаем владельцем (для отладки)."""
+    """Кто перед нами. В dev без initData — владелец (если _DEV_ADMIN)."""
     if init_data:
         user = _verify_init_data(init_data)
         if user:
@@ -77,7 +84,15 @@ def _resolve_user(init_data: str | None) -> dict:
                 "isAdmin": uid == config.ADMIN_ID,
                 "isPremium": False,  # позже — из подписки
             }
-    return {"name": "Дмитрий", "isAdmin": True, "isPremium": False}
+    return {"name": "Дмитрий", "isAdmin": _DEV_ADMIN, "isPremium": False}
+
+
+def _require_admin(init_data: str | None) -> dict:
+    """Гейт для пишущих операций: только владелец портфеля."""
+    user = _resolve_user(init_data)
+    if not user["isAdmin"]:
+        raise HTTPException(status_code=403, detail="Только владелец портфеля")
+    return user
 
 
 # ───────────────────────── эндпойнты ─────────────────────────
@@ -87,8 +102,7 @@ def me(x_init_data: str | None = Header(default=None)):
     return _resolve_user(x_init_data)
 
 
-@app.get("/api/summary")
-def summary():
+def _summary_payload() -> dict:
     s = portfolio.summary()
     positions = [
         {
@@ -110,6 +124,78 @@ def summary():
         "cashUsdt": round(s["usdt_cash"], 2),
         "positions": positions,
     }
+
+
+@app.get("/api/summary")
+def summary():
+    return _summary_payload()
+
+
+# ──────────────── пишущие операции (только владелец) ────────────────
+
+class BuyReq(BaseModel):
+    ticker: str
+    amountUsdt: float
+    reason: str | None = None
+
+
+class SellReq(BaseModel):
+    ticker: str
+    amountUsdt: float | None = None  # None → продать всю позицию
+    reason: str | None = None
+
+
+class DepositReq(BaseModel):
+    rub: float
+    rate: float
+
+
+class WithdrawReq(BaseModel):
+    amountUsdt: float
+
+
+def _ok():
+    return {"ok": True, "summary": _summary_payload()}
+
+
+@app.post("/api/buy")
+def api_buy(req: BuyReq, x_init_data: str | None = Header(default=None)):
+    _require_admin(x_init_data)
+    try:
+        tx = portfolio.market_buy(req.ticker, req.amountUsdt)
+        if req.reason:
+            portfolio.set_reason(tx["id"], req.reason)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return _ok()
+
+
+@app.post("/api/sell")
+def api_sell(req: SellReq, x_init_data: str | None = Header(default=None)):
+    _require_admin(x_init_data)
+    try:
+        tx = portfolio.market_sell(req.ticker, req.amountUsdt)
+        if req.reason:
+            portfolio.set_reason(tx["id"], req.reason)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return _ok()
+
+
+@app.post("/api/deposit")
+def api_deposit(req: DepositReq, x_init_data: str | None = Header(default=None)):
+    _require_admin(x_init_data)
+    if req.rate <= 0:
+        raise HTTPException(status_code=400, detail="Курс должен быть > 0")
+    portfolio.add_deposit(req.rub / req.rate, req.rate)
+    return _ok()
+
+
+@app.post("/api/withdraw")
+def api_withdraw(req: WithdrawReq, x_init_data: str | None = Header(default=None)):
+    _require_admin(x_init_data)
+    portfolio.add_withdraw(req.amountUsdt)
+    return _ok()
 
 
 @app.get("/api/history")

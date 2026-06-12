@@ -31,3 +31,25 @@ export const loadHistory = () => getJSON("/api/history", mockHistory);
 export const loadBench = () => getJSON("/api/compare", mockBench);
 export const loadJournal = () => getJSON("/api/journal", mockJournal);
 export const loadUser = () => getJSON("/api/me", mockUser);
+
+// ── пишущие операции (только владелец; бэкенд проверяет initData) ──
+async function postJSON(path: string, body: unknown): Promise<void> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Init-Data": initData() },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error((err as any).detail || "Ошибка операции");
+  }
+}
+
+export const apiBuy = (b: { ticker: string; amountUsdt: number; reason?: string }) =>
+  postJSON("/api/buy", b);
+export const apiSell = (b: { ticker: string; amountUsdt: number | null; reason?: string }) =>
+  postJSON("/api/sell", b);
+export const apiDeposit = (b: { rub: number; rate: number }) =>
+  postJSON("/api/deposit", b);
+export const apiWithdraw = (b: { amountUsdt: number }) =>
+  postJSON("/api/withdraw", b);
