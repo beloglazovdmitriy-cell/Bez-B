@@ -20,6 +20,9 @@ if (tg) {
   apply();
   tg.onEvent?.("safeAreaChanged", apply);
   tg.onEvent?.("fullscreenChanged", apply);
+  tg.onEvent?.("viewportChanged", apply);
+  // полноэкранный режим «устаканивается» с задержкой — пересчитываем несколько раз
+  [150, 400, 900, 1600].forEach((ms) => setTimeout(apply, ms));
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

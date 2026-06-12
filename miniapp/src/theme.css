@@ -35,9 +35,14 @@ body {
 }
 
 .header {
-  /* верхний отступ учитывает чёлку/статус-бар в полноэкранном Telegram.
-     берём максимум из инсета Telegram и системного env() + базовый запас */
-  padding-top: calc(16px + max(var(--tg-top, 0px), env(safe-area-inset-top, 0px)));
+  /* Верхний отступ под чёлку/статус-бар и панель управления Telegram.
+     Используем авто-переменные Telegram (обновляются без задержки) + env() +
+     наш JS-фолбэк --tg-top. Итог = чёлка устройства + панель Telegram + запас. */
+  padding-top: calc(
+    14px
+    + max(var(--tg-safe-area-inset-top, 0px), env(safe-area-inset-top, 0px), var(--tg-top, 0px))
+    + var(--tg-content-safe-area-inset-top, 0px)
+  );
   padding-left: 16px;
   padding-right: 16px;
   padding-bottom: 6px;
