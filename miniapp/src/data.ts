@@ -45,7 +45,15 @@ export const loadSummary = () => getJSON("/api/summary", mockSummary);
 export const loadHistory = () => getJSON("/api/history", mockHistory);
 export const loadBench = () => getJSON("/api/compare", mockBench);
 export const loadJournal = () => getJSON("/api/journal", mockJournal);
-export const loadUser = () => getJSON("/api/me", fallbackUser());
+export async function loadUser() {
+  const u = await getJSON("/api/me", fallbackUser());
+  // подстраховка: если Telegram сообщает, что это владелец — показываем
+  // админ-вкладки даже если серверная проверка подписи дала сбой
+  // (сами операции всё равно защищены проверкой на сервере).
+  const tg = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
+  if (tg && tg.id === ADMIN_ID) return { ...u, isAdmin: true };
+  return u;
+}
 
 // ── пишущие операции (только владелец; бэкенд проверяет initData) ──
 async function postJSON(path: string, body: unknown): Promise<void> {

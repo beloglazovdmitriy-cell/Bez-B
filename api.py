@@ -57,19 +57,33 @@ def _color(ticker: str, i: int) -> str:
 # ───────────────────────── авторизация ─────────────────────────
 
 def _verify_init_data(init_data: str) -> dict | None:
-    """Проверить подпись Telegram initData. Вернуть данные пользователя или None."""
+    """Проверить подпись Telegram initData (HMAC по токену). Вернуть user или None.
+
+    Новые клиенты добавляют поле `signature` (для отдельной ed25519-проверки),
+    которое не входит в HMAC data_check_string — поэтому пробуем оба варианта."""
     try:
-        pairs = dict(parse_qsl(init_data, strict_parsing=True))
+        pairs = dict(parse_qsl(init_data))
         received_hash = pairs.pop("hash", None)
         if not received_hash:
+            print("[auth] no hash; keys=", sorted(pairs), flush=True)
             return None
-        check = "\n".join(f"{k}={pairs[k]}" for k in sorted(pairs))
         secret = hmac.new(b"WebAppData", config.BOT_TOKEN.encode(), hashlib.sha256).digest()
-        calc = hmac.new(secret, check.encode(), hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(calc, received_hash):
-            return None
-        return json.loads(pairs.get("user", "{}"))
-    except Exception:
+
+        def _calc(d):
+            check = "\n".join(f"{k}={d[k]}" for k in sorted(d))
+            return hmac.new(secret, check.encode(), hashlib.sha256).hexdigest()
+
+        candidates = [pairs]
+        if "signature" in pairs:
+            no_sig = {k: v for k, v in pairs.items() if k != "signature"}
+            candidates.append(no_sig)
+        for d in candidates:
+            if hmac.compare_digest(_calc(d), received_hash):
+                return json.loads(pairs.get("user", "{}"))
+        print("[auth] hash mismatch; keys=", sorted(pairs), flush=True)
+        return None
+    except Exception as e:
+        print("[auth] error:", e, flush=True)
         return None
 
 
