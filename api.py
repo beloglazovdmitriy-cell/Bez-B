@@ -26,6 +26,7 @@ import config
 import portfolio
 import benchmark
 import storage
+import ai
 
 app = FastAPI(title="Bez B API")
 
@@ -296,6 +297,33 @@ def journal(p: str = "bezb", x_init_data: str | None = Header(default=None)):
         if len(out) >= 20:
             break
     return out
+
+
+@app.post("/api/analyze")
+def analyze(p: str = "bezb", x_init_data: str | None = Header(default=None)):
+    """AI-разбор выбранного портфеля. 503, если ключ Claude не подключён."""
+    _ctx(p, x_init_data)
+    if not ai.available():
+        raise HTTPException(status_code=503,
+                            detail="AI-разбор появится после подключения ключа Claude API")
+    s = portfolio.summary()
+    pv = s["positions_value_usdt"] or 1
+    data = {
+        "label": "публичный портфель «Без Б»" if p != "me" else "ваш портфель",
+        "totalUsd": s["total_value_usdt"], "totalRub": s["value_rub"],
+        "profitRubPct": s["profit_rub_pct"], "profitUsdPct": s["profit_usdt_pct"],
+        "index": s["index"], "cashUsdt": s["usdt_cash"],
+        "positions": [{
+            "ticker": pos.ticker, "weightPct": pos.value_usd / pv * 100,
+            "profitPct": pos.profit_pct, "avgPrice": round(pos.avg_price_usdt, 4),
+            "priceNow": round(pos.price_now, 4),
+        } for pos in s["positions"]],
+    }
+    try:
+        text = ai.analyze_portfolio(data)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"AI временно недоступен: {e}")
+    return {"text": text}
 
 
 @app.get("/api/compare")

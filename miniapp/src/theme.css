@@ -127,6 +127,12 @@ body {
   display: flex; align-items: center; justify-content: center; gap: 8px;
 }
 .cta:active { background: var(--accent-dim); }
+.cta-ghost { background: var(--surface); color: var(--accent); border: 1px solid var(--accent-dim); }
+.cta-ghost:active { background: var(--surface-2); }
+
+/* текст AI-разбора */
+.ai-text { white-space: pre-wrap; line-height: 1.62; font-size: 14.5px; color: var(--text);
+  margin: 4px 0 6px; }
 
 .disclaimer { color: #4a4e59; font-size: 11px; text-align: center; padding: 4px 8px 0; }
 

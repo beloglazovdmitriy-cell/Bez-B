@@ -80,3 +80,16 @@ export const apiWithdraw = (pf: Pf, b: { amountUsdt: number }) =>
   postJSON(`/api/withdraw?p=${pf}`, b);
 export const apiDepositAsset = (pf: Pf, b: { ticker: string; amountUsdt: number; price?: number; reason?: string }) =>
   postJSON(`/api/deposit_asset?p=${pf}`, b);
+
+// AI-разбор портфеля → возвращает текст разбора
+export async function apiAnalyze(pf: Pf): Promise<string> {
+  const res = await fetch(`${API_BASE}/api/analyze?p=${pf}`, {
+    method: "POST",
+    headers: { "X-Init-Data": initData() },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error((err as any).detail || "AI недоступен");
+  }
+  return (await res.json()).text as string;
+}
