@@ -38,7 +38,6 @@ export default function TradeSheet({
   const [error, setError] = useState("");
 
   const assetDepo = action === "deposit" && depoMode === "asset";
-  const needsTicker = action === "buy" || action === "sell" || assetDepo;
   const needsReason = action === "buy" || action === "sell";  // у пополнения причины нет
 
   async function submit() {
