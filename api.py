@@ -638,6 +638,48 @@ def home():
     return {"mood": mood, "digest": digest, "bezbToday": today_trade}
 
 
+class FeedbackReq(BaseModel):
+    name: str = ""
+    phone: str = ""
+    message: str = ""
+    consentPd: bool = False
+    consentAds: bool = False
+
+
+@app.post("/api/feedback")
+def feedback(req: FeedbackReq):
+    """Заявка с лендинга. Обязательно согласие на обработку ПД (152-ФЗ)."""
+    if not req.consentPd:
+        raise HTTPException(status_code=400,
+                            detail="Нужно согласие на обработку персональных данных")
+    phone = req.phone.strip()
+    name = req.name.strip()
+    if not phone or len(phone) < 6:
+        raise HTTPException(status_code=400, detail="Укажите корректный номер телефона")
+    fid = storage.add_feedback(name, phone, req.message.strip(),
+                               req.consentPd, req.consentAds)
+    # уведомить владельца в Telegram
+    try:
+        import requests
+        if config.BOT_TOKEN and config.ADMIN_ID:
+            ads = "да" if req.consentAds else "нет"
+            text = (f"📨 Новая заявка с лендинга #{fid}\n"
+                    f"Имя: {name or '—'}\nТелефон: {phone}\n"
+                    f"Сообщение: {req.message.strip() or '—'}\n"
+                    f"Согласие на рекламу: {ads}")
+            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage",
+                          json={"chat_id": config.ADMIN_ID, "text": text}, timeout=10)
+    except Exception:
+        pass
+    return {"ok": True, "id": fid}
+
+
+@app.get("/api/feedback")
+def feedback_list(x_init_data: str | None = Header(default=None)):
+    _require_owner(x_init_data)
+    return storage.list_feedback()
+
+
 class AdminGrantReq(BaseModel):
     username: str
     revoke: bool = False

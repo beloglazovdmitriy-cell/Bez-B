@@ -200,6 +200,47 @@ def reactions_for(post_ids: list, uid: str) -> dict:
     return out
 
 
+# ──────────────── обратная связь (лендинг) ────────────────
+
+def _ensure_feedback(conn):
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS feedback ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER, name TEXT, phone TEXT, "
+        "message TEXT, consent_pd INTEGER, consent_ads INTEGER)")
+
+
+def add_feedback(name: str, phone: str, message: str,
+                 consent_pd: bool, consent_ads: bool) -> int:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_feedback(conn)
+            cur = conn.execute(
+                "INSERT INTO feedback (ts, name, phone, message, consent_pd, consent_ads) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (int(time.time()), name, phone, message,
+                 1 if consent_pd else 0, 1 if consent_ads else 0))
+            conn.commit()
+            return cur.lastrowid
+        finally:
+            conn.close()
+
+
+def list_feedback(limit: int = 100) -> list:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_feedback(conn)
+            rows = conn.execute(
+                "SELECT id, ts, name, phone, message, consent_pd, consent_ads "
+                "FROM feedback ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+            return [{"id": r[0], "ts": r[1], "name": r[2], "phone": r[3],
+                     "message": r[4], "consentPd": bool(r[5]), "consentAds": bool(r[6])}
+                    for r in rows]
+        finally:
+            conn.close()
+
+
 # ──────────────── доп. администраторы (по @username) ────────────────
 # Полный доступ в приложении (как у владельца): редактировать публичный
 # портфель, контент-студия, публикация. По нику, т.к. id узнаём только когда

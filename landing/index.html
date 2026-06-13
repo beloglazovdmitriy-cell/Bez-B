@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Без Б — инвестиции без буллшита</title>
+<meta name="description" content="Публичный инвестпортфель «Без Б»: всё открыто, без обещаний и задним числом. AI-разбор рынка, дисциплина DCA, мгновенные сделки." />
+<style>
+  :root{
+    --bg:#0e1117; --surface:#161b22; --surface2:#1c232d; --border:#2a2e39;
+    --text:#d1d4dc; --muted:#787b86; --accent:#26a69a; --accent-dim:#1f7a72; --red:#ef5350;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,"Segoe UI",Roboto,system-ui,sans-serif;font-size:16px;line-height:1.5}
+  a{color:var(--accent);text-decoration:none}
+  .wrap{max-width:760px;margin:0 auto;padding:0 20px}
+  .btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#04130f;
+    font-weight:700;border:none;border-radius:12px;padding:14px 22px;font-size:16px;cursor:pointer;
+    transition:background .15s;text-decoration:none}
+  .btn:hover{background:#2fbcae}
+  .btn.ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+
+  /* hero */
+  header{padding:54px 0 40px;text-align:center;
+    background:radial-gradient(120% 80% at 50% 0%, rgba(38,166,154,.10), transparent 60%)}
+  .brand{display:inline-flex;align-items:center;gap:10px;font-size:26px;font-weight:800;letter-spacing:-.5px}
+  .brand .coin{width:34px;height:34px}
+  h1{font-size:34px;line-height:1.15;margin:26px 0 14px;letter-spacing:-.5px}
+  h1 .em{color:var(--accent)}
+  .lead{color:var(--muted);font-size:18px;max-width:560px;margin:0 auto 28px}
+  .cta-row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+
+  /* manifest chips */
+  .manifest{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:30px 0 0}
+  .chip{background:var(--surface);border:1px solid var(--border);border-radius:999px;
+    padding:8px 14px;font-size:13.5px;color:var(--muted)}
+  .chip b{color:var(--text)}
+
+  section{padding:44px 0}
+  .section-title{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);
+    font-weight:700;margin:0 0 18px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:560px){.grid{grid-template-columns:1fr}.hide-sm{display:none}h1{font-size:28px}}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px}
+  .card h3{margin:0 0 6px;font-size:17px}
+  .card p{margin:0;color:var(--muted);font-size:14.5px}
+  .card .ic{font-size:22px;margin-bottom:10px;display:block}
+
+  /* form */
+  .form-card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:22px}
+  label.fl{display:block;font-size:13px;color:var(--muted);margin:14px 0 6px}
+  .inp,textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:12px;
+    padding:13px 14px;color:var(--text);font-size:15px;font-family:inherit}
+  textarea{min-height:90px;resize:vertical}
+  .inp:focus,textarea:focus{outline:none;border-color:var(--accent)}
+  .consent{display:flex;gap:10px;align-items:flex-start;margin-top:16px;font-size:13px;color:var(--muted)}
+  .consent input{margin-top:3px;width:18px;height:18px;flex:0 0 auto;accent-color:var(--accent)}
+  .consent a{color:var(--accent)}
+  .form-msg{margin-top:14px;font-size:14px;display:none}
+  .form-msg.ok{color:var(--accent);display:block}
+  .form-msg.err{color:var(--red);display:block}
+  .submit{margin-top:18px;width:100%;justify-content:center}
+
+  footer{border-top:1px solid var(--border);padding:30px 0 50px;color:var(--muted);font-size:13px}
+  footer .links{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:14px}
+  .disclaimer{font-size:12px;color:#5b5e68;margin-top:14px;line-height:1.5}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="brand">
+      <svg class="coin" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="18" fill="#0e1117" stroke="#26a69a" stroke-width="2.5"/>
+        <path d="M20 8.5V31.5M16 8.5H22.5C25 8.5 26.5 10 26.5 12.2C26.5 14.4 25 15.8 22.5 15.8H16M16 15.8H23.2C25.8 15.8 27.3 17.3 27.3 19.7C27.3 22.1 25.8 23.5 23.2 23.5H16M16 5.8V11M16 21V26.2" stroke="#26a69a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Bez&nbsp;Б</span>
+    </div>
+
+    <h1>Инвестиции <span class="em">без буллшита</span></h1>
+    <p class="lead">
+      Публичный портфель, где всё открыто: реальные сделки, причины решений,
+      результат — без обещаний и без «я же говорил» задним числом.
+    </p>
+    <div class="cta-row">
+      <a class="btn" href="https://t.me/BezzBot_bot" target="_blank" rel="noopener">Открыть в Telegram</a>
+      <a class="btn ghost" href="#feedback">Связаться</a>
+    </div>
+
+    <div class="manifest">
+      <span class="chip">Без <b>обещаний</b></span>
+      <span class="chip">Без <b>задним числом</b></span>
+      <span class="chip">Без <b>буллшита</b></span>
+      <span class="chip hide-sm"><b>Капитал</b> с нуля</span>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <p class="section-title">Что внутри</p>
+    <div class="grid">
+      <div class="card"><span class="ic">📊</span><h3>Публичный портфель</h3>
+        <p>Реальные позиции, веса, доходность и индекс — обновляются открыто.</p></div>
+      <div class="card"><span class="ic">🧠</span><h3>AI-разбор</h3>
+        <p>Что происходит на рынке и в портфеле — человеческим языком, без сигналов.</p></div>
+      <div class="card"><span class="ic">🔔</span><h3>Мгновенные сделки</h3>
+        <p>Пуш о каждой покупке и продаже — раньше, чем пост в канале.</p></div>
+      <div class="card"><span class="ic">🔥</span><h3>Дисциплина DCA</h3>
+        <p>Стрик регулярных взносов, бейджи и песочница «что было бы».</p></div>
+      <div class="card"><span class="ic">📰</span><h3>Лента и рубрики</h3>
+        <p>Разбор толпы, дайджест рынка, ликбез и детектор буллшита.</p></div>
+      <div class="card"><span class="ic">🧮</span><h3>Свой портфель</h3>
+        <p>Веди личный портфель и сравнивай себя с «Без Б».</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="feedback">
+  <div class="wrap">
+    <p class="section-title">Обратная связь</p>
+    <div class="form-card">
+      <p style="margin:0 0 4px;color:var(--muted);font-size:14.5px">
+        Вопрос, идея или предложение? Оставьте контакт — свяжемся.</p>
+
+      <form id="fbForm">
+        <label class="fl" for="name">Имя</label>
+        <input class="inp" id="name" name="name" type="text" autocomplete="name" placeholder="Как к вам обращаться" />
+
+        <label class="fl" for="phone">Телефон *</label>
+        <input class="inp" id="phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="+7 ___ ___-__-__" required />
+
+        <label class="fl" for="message">Сообщение</label>
+        <textarea class="inp" id="message" name="message" placeholder="Коротко о сути"></textarea>
+
+        <label class="consent">
+          <input type="checkbox" id="consentPd" required />
+          <span>Я даю согласие на обработку моих персональных данных (имя, номер телефона)
+          в соответствии с <a href="privacy.html" target="_blank">Политикой конфиденциальности</a>
+          и Федеральным законом №152-ФЗ «О персональных данных». *</span>
+        </label>
+
+        <label class="consent">
+          <input type="checkbox" id="consentAds" />
+          <span>Согласен(на) получать информационные и рекламные сообщения
+          по указанному номеру (необязательно).</span>
+        </label>
+
+        <button class="btn submit" type="submit">Отправить</button>
+        <div class="form-msg" id="fbMsg"></div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="links">
+      <a href="https://t.me/BezzBot_bot" target="_blank" rel="noopener">Telegram-бот</a>
+      <a href="https://t.me/BezBlogfin" target="_blank" rel="noopener">Канал</a>
+      <a href="privacy.html" target="_blank">Политика конфиденциальности</a>
+    </div>
+    <div>© <span id="yr"></span> «Без Б». Оператор персональных данных: Белоглазов Дмитрий.</div>
+    <div class="disclaimer">
+      Материалы носят информационный характер и не являются индивидуальной
+      инвестиционной рекомендацией. Инвестиции связаны с риском потери капитала.
+    </div>
+  </div>
+</footer>
+
+<script>
+  document.getElementById("yr").textContent = new Date().getFullYear();
+  var form = document.getElementById("fbForm");
+  var msg = document.getElementById("fbMsg");
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    msg.className = "form-msg";
+    var body = {
+      name: document.getElementById("name").value,
+      phone: document.getElementById("phone").value,
+      message: document.getElementById("message").value,
+      consentPd: document.getElementById("consentPd").checked,
+      consentAds: document.getElementById("consentAds").checked,
+    };
+    if (!body.consentPd) { msg.textContent = "Нужно согласие на обработку персональных данных."; msg.className = "form-msg err"; return; }
+    var btn = form.querySelector("button[type=submit]");
+    btn.disabled = true; btn.textContent = "Отправляю…";
+    try {
+      var res = await fetch("/api/feedback", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) { var er = await res.json().catch(function(){return{}}); throw new Error(er.detail || "Ошибка отправки"); }
+      msg.textContent = "Спасибо! Заявка отправлена — мы свяжемся с вами.";
+      msg.className = "form-msg ok";
+      form.reset();
+    } catch (err) {
+      msg.textContent = err.message || "Не удалось отправить. Попробуйте позже.";
+      msg.className = "form-msg err";
+    } finally {
+      btn.disabled = false; btn.textContent = "Отправить";
+    }
+  });
+</script>
+</body>
+</html>
