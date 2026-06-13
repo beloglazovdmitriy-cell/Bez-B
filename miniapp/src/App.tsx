@@ -3,6 +3,7 @@ import BottomNav, { type Tab } from "./components/BottomNav";
 import WelcomeModal from "./components/WelcomeModal";
 import PortfolioSwitcher from "./components/PortfolioSwitcher";
 import { IconLogo } from "./components/Icons";
+import FeedScreen from "./screens/FeedScreen";
 import PortfolioScreen from "./screens/PortfolioScreen";
 import ChartScreen from "./screens/ChartScreen";
 import JournalScreen from "./screens/JournalScreen";
@@ -13,7 +14,7 @@ import { useAppData } from "./useAppData";
 import type { Pf } from "./data";
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>("portfolio");
+  const [tab, setTab] = useState<Tab>("feed");
   const [pf, setPf] = useState<Pf>("bezb");
   const [welcome, setWelcome] = useState(() => !localStorage.getItem("bezb_welcomed"));
   const data = useAppData(pf);
@@ -38,6 +39,7 @@ export default function App() {
 
       {showSwitch && <PortfolioSwitcher pf={pf} onChange={setPf} />}
 
+      {tab === "feed" && <FeedScreen />}
       {tab === "portfolio" && <PortfolioScreen summary={data.summary} pf={pf} />}
       {tab === "chart" && <ChartScreen history={data.history} bench={data.bench} />}
       {tab === "journal" && <JournalScreen journal={data.journal} user={data.user} pf={pf} />}

@@ -139,6 +139,13 @@ body {
 .ai-text { white-space: pre-wrap; line-height: 1.62; font-size: 14.5px; color: var(--text);
   margin: 4px 0 6px; }
 
+/* лента опубликованных постов */
+.feed-post { padding: 14px 16px; }
+.feed-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.feed-kind { font-weight: 700; font-size: 13px; color: var(--accent); }
+.feed-date { font-size: 11px; color: var(--muted); }
+.feed-text { line-height: 1.5; white-space: pre-wrap; }
+
 /* контент-студия: карточки черновиков */
 .draft { padding: 12px 14px; }
 .draft-kind { font-weight: 700; font-size: 13px; color: var(--accent); margin-bottom: 4px; }

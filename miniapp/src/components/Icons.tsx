@@ -21,6 +21,13 @@ export const IconPortfolio = ({ size = 24, className }: P) => (
   </svg>
 );
 
+export const IconFeed = ({ size = 24, className }: P) => (
+  <svg {...base(size, className)}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M7 9h10M7 13h10M7 17h6" />
+  </svg>
+);
+
 export const IconChart = ({ size = 24, className }: P) => (
   <svg {...base(size, className)}>
     <path d="M3 3v18h18" />

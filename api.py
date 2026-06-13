@@ -488,6 +488,12 @@ def content_generate(kind: str, x_init_data: str | None = Header(default=None)):
     return storage.add_draft(kind, text)
 
 
+@app.get("/api/feed")
+def feed():
+    """Лента опубликованных постов — для Mini App (публично)."""
+    return storage.list_published()
+
+
 @app.get("/api/content/drafts")
 def content_drafts(x_init_data: str | None = Header(default=None)):
     _require_owner(x_init_data)

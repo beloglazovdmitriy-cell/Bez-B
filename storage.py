@@ -143,6 +143,20 @@ def list_drafts(limit: int = 30) -> list:
             conn.close()
 
 
+def list_published(limit: int = 50) -> list:
+    """Опубликованные посты — для ленты в Mini App (публично, без гейта)."""
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_drafts(conn)
+            rows = conn.execute(
+                "SELECT id, ts, kind, text, status FROM drafts WHERE status='published' "
+                "ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+            return [_draft_row(r) for r in rows]
+        finally:
+            conn.close()
+
+
 def get_draft(draft_id: int) -> dict | None:
     with _lock:
         conn = _connect()

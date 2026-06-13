@@ -146,6 +146,7 @@ async function reqJSON<T>(path: string, method = "GET"): Promise<T> {
   return res.json();
 }
 
+export const apiFeed = () => reqJSON<Draft[]>("/api/feed");
 export const apiContentGenerate = (kind: string) =>
   reqJSON<Draft>(`/api/content/generate?kind=${kind}`, "POST");
 export const apiContentDrafts = () => reqJSON<Draft[]>("/api/content/drafts");
