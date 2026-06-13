@@ -200,6 +200,146 @@ def reactions_for(post_ids: list, uid: str) -> dict:
     return out
 
 
+# ──────────────── онбординг (5 уроков, по одному в день) ────────────────
+
+_ONBOARDING_TOTAL = 5
+_ONBOARDING_GAP = 20 * 3600   # следующий урок не раньше, чем через ~сутки
+
+
+def _ensure_onboarding(conn):
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS onboarding ("
+        "uid TEXT PRIMARY KEY, done INTEGER, last_ts INTEGER)")
+
+
+def onboarding_get(uid: str) -> dict:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_onboarding(conn)
+            row = conn.execute(
+                "SELECT done, last_ts FROM onboarding WHERE uid=?", (uid,)).fetchone()
+        finally:
+            conn.close()
+    now = int(time.time())
+    done, last_ts = (row[0], row[1]) if row else (0, 0)
+    finished = done >= _ONBOARDING_TOTAL
+    can = (not finished) and (done == 0 or now - last_ts >= _ONBOARDING_GAP)
+    next_in = 0
+    if not can and not finished:
+        next_in = int((_ONBOARDING_GAP - (now - last_ts)) // 3600) + 1
+    return {"done": done, "total": _ONBOARDING_TOTAL, "canRead": can,
+            "finished": finished, "nextInHours": max(0, next_in)}
+
+
+def onboarding_read(uid: str) -> dict:
+    now = int(time.time())
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_onboarding(conn)
+            row = conn.execute(
+                "SELECT done, last_ts FROM onboarding WHERE uid=?", (uid,)).fetchone()
+            done, last_ts = (row[0], row[1]) if row else (0, 0)
+            ok = done < _ONBOARDING_TOTAL and (done == 0 or now - last_ts >= _ONBOARDING_GAP)
+            if ok:
+                done += 1
+                conn.execute(
+                    "INSERT INTO onboarding (uid, done, last_ts) VALUES (?, ?, ?) "
+                    "ON CONFLICT(uid) DO UPDATE SET done=excluded.done, last_ts=excluded.last_ts",
+                    (uid, done, now))
+                conn.commit()
+        finally:
+            conn.close()
+    st = onboarding_get(uid)
+    st["ok"] = ok
+    return st
+
+
+# ──────────────── Q&A (вопрос-ответ) ────────────────
+
+def _ensure_qa(conn):
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS qa ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER, uid TEXT, name TEXT, "
+        "question TEXT, answer TEXT, answered_by TEXT)")
+
+
+def qa_count_today(uid: str) -> int:
+    since = int(time.time()) - 86400
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_qa(conn)
+            r = conn.execute("SELECT COUNT(*) FROM qa WHERE uid=? AND ts>=?",
+                             (uid, since)).fetchone()
+            return r[0] if r else 0
+        finally:
+            conn.close()
+
+
+def add_qa(uid: str, name: str, question: str, answer, answered_by) -> int:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_qa(conn)
+            cur = conn.execute(
+                "INSERT INTO qa (ts, uid, name, question, answer, answered_by) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (int(time.time()), uid, name, question, answer, answered_by))
+            conn.commit()
+            return cur.lastrowid
+        finally:
+            conn.close()
+
+
+def set_qa_answer(qid: int, answer: str, answered_by: str = "owner"):
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_qa(conn)
+            row = conn.execute("SELECT uid FROM qa WHERE id=?", (qid,)).fetchone()
+            if not row:
+                return None
+            conn.execute("UPDATE qa SET answer=?, answered_by=? WHERE id=?",
+                         (answer, answered_by, qid))
+            conn.commit()
+            return row[0]
+        finally:
+            conn.close()
+
+
+def _qa_rows_to_list(rows):
+    return [{"id": r[0], "ts": r[1], "uid": r[2], "name": r[3], "question": r[4],
+             "answer": r[5], "answeredBy": r[6]} for r in rows]
+
+
+def list_qa_mine(uid: str, limit: int = 30) -> list:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_qa(conn)
+            rows = conn.execute(
+                "SELECT id, ts, uid, name, question, answer, answered_by FROM qa "
+                "WHERE uid=? ORDER BY id DESC LIMIT ?", (uid, limit)).fetchall()
+            return _qa_rows_to_list(rows)
+        finally:
+            conn.close()
+
+
+def list_qa_all(limit: int = 100) -> list:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_qa(conn)
+            rows = conn.execute(
+                "SELECT id, ts, uid, name, question, answer, answered_by FROM qa "
+                "ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+            return _qa_rows_to_list(rows)
+        finally:
+            conn.close()
+
+
 # ──────────────── обратная связь (лендинг) ────────────────
 
 def _ensure_feedback(conn):

@@ -229,6 +229,23 @@ body {
 .switch.on { background: rgba(38,166,154,.25); border-color: var(--accent); }
 .switch.on .knob { transform: translateX(18px); background: var(--accent); }
 
+/* ── Онбординг (мини-курс) ── */
+.onb { padding: 14px 16px; }
+.onb-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.onb-dots { display: flex; gap: 5px; }
+.onb-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); }
+.onb-dot.on { background: var(--accent); }
+.onb-title { font-size: 16px; font-weight: 700; }
+.onb-body { font-size: 14px; color: var(--text); line-height: 1.55; margin-top: 8px; }
+.onb-btn { margin-top: 12px; }
+.onb-next { font-size: 13.5px; color: var(--muted); }
+
+/* ── Q&A ── */
+.qa-item { padding: 14px 16px; }
+.qa-q { font-weight: 600; font-size: 14.5px; }
+.qa-a { margin-top: 8px; font-size: 14px; line-height: 1.5; color: var(--text); }
+.qa-by { display: block; font-size: 12px; color: var(--accent); font-weight: 700; margin-bottom: 3px; }
+
 /* ── Студия: опции публикации ── */
 .pub-opts { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 4px; }
 .pub-opt { display: inline-flex; align-items: center; gap: 6px; font-size: 13px;

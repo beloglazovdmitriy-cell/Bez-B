@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiHome, type Home } from "../data";
 import DcaStreak from "./DcaStreak";
+import Onboarding from "./Onboarding";
 
 const SIDE_LABEL = { buy: "купил", sell: "продал" } as const;
 
@@ -48,6 +49,7 @@ export default function HomeHeader() {
   return (
     <div className="home">
       <DcaStreak />
+      <Onboarding />
       {m && (
         <div className="card home-mood">
           <Gauge value={m.value} />

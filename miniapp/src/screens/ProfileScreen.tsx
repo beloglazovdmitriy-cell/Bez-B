@@ -3,6 +3,7 @@ import {
   IconCrown, IconLock, IconCheck, IconShare, IconChannel, IconChevron, IconAI, Brand,
 } from "../components/Icons";
 import ContentStudio from "../components/ContentStudio";
+import QaSheet from "../components/QaSheet";
 import { apiSubscribe, apiUnsubscribe } from "../data";
 import { mockUser } from "../mock";
 
@@ -36,6 +37,7 @@ const PREMIUM = [
 export default function ProfileScreen({ user }: { user: User }) {
   const u = user;
   const [studio, setStudio] = useState(false);
+  const [qa, setQa] = useState(false);
   const [subscribed, setSubscribed] = useState(!!(u as any).isSubscribed);
   const [subBusy, setSubBusy] = useState(false);
 
@@ -110,6 +112,11 @@ export default function ProfileScreen({ user }: { user: User }) {
 
       {/* действия */}
       <div className="list">
+        <button className="list-row" onClick={() => setQa(true)}>
+          <span className="lr-ic accent"><IconAI size={18} /></span>
+          <span>Задать вопрос {u.isAdmin ? "· ответить" : "(AI / автор)"}</span>
+          <IconChevron size={18} className="lr-chev" />
+        </button>
         <button className="list-row" onClick={shareResult}>
           <span className="lr-ic accent"><IconShare size={18} /></span>
           <span>Поделиться результатом</span>
@@ -125,6 +132,7 @@ export default function ProfileScreen({ user }: { user: User }) {
       <div className="disclaimer">Не является индивидуальной инвестиционной рекомендацией.</div>
 
       {studio && <ContentStudio onClose={() => setStudio(false)} />}
+      {qa && <QaSheet isAdmin={u.isAdmin} onClose={() => setQa(false)} />}
     </div>
   );
 }

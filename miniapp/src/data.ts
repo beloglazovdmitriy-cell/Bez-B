@@ -70,6 +70,20 @@ async function postJSON(path: string, body: unknown): Promise<void> {
   }
 }
 
+// POST с телом, возвращает JSON-ответ
+async function postJSONr<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Init-Data": initData() },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error((err as any).detail || "Ошибка");
+  }
+  return res.json();
+}
+
 export const apiBuy = (pf: Pf, b: { ticker: string; amountUsdt: number; reason?: string }) =>
   postJSON(`/api/buy?p=${pf}`, b);
 export const apiSell = (pf: Pf, b: { ticker: string; amountUsdt: number | null; reason?: string }) =>
@@ -91,6 +105,25 @@ export interface Dca {
 }
 export const apiDca = () => reqJSON<Dca>("/api/dca");
 export const apiDcaCheckin = () => reqJSON<Dca>("/api/dca/checkin", "POST");
+
+// ── онбординг (5 уроков) ──
+export interface Onboarding {
+  done: number; total: number; canRead: boolean; finished: boolean;
+  nextInHours: number; anon?: boolean; ok?: boolean;
+}
+export const apiOnboarding = () => reqJSON<Onboarding>("/api/onboarding");
+export const apiOnboardingRead = () => reqJSON<Onboarding>("/api/onboarding/read", "POST");
+
+// ── Q&A ──
+export interface QaItem {
+  id: number; ts: number; uid?: string; name?: string;
+  question: string; answer: string | null; answeredBy: string | null;
+}
+export const apiQaAsk = (question: string) => postJSONr<QaItem>("/api/qa/ask", { question });
+export const apiQaMine = () => reqJSON<QaItem[]>("/api/qa/mine");
+export const apiQaAll = () => reqJSON<QaItem[]>("/api/qa/all");
+export const apiQaAnswer = (id: number, text: string) =>
+  postJSONr<{ ok: boolean }>("/api/qa/answer", { id, text });
 
 // ── DCA-песочница (бэктест на истории) ──
 export interface SandboxPoint { date: string; invested: number; value: number; }

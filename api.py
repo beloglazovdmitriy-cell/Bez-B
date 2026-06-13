@@ -749,6 +749,117 @@ def dca_checkin(x_init_data: str | None = Header(default=None)):
     return storage.dca_checkin(f"u{uid}")
 
 
+def _tg_send(chat_id, text: str) -> None:
+    """Отправить личное сообщение пользователю/владельцу в Telegram (best-effort)."""
+    try:
+        import requests
+        if config.BOT_TOKEN and chat_id:
+            requests.post(
+                f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage",
+                json={"chat_id": chat_id, "text": text}, timeout=10)
+    except Exception:
+        pass
+
+
+# ──────────────── онбординг (5 уроков) ────────────────
+
+@app.get("/api/onboarding")
+def onboarding(x_init_data: str | None = Header(default=None)):
+    uid = _resolve_user(x_init_data).get("id")
+    if not uid:
+        return {"done": 0, "total": 5, "canRead": False, "finished": False,
+                "nextInHours": 0, "anon": True}
+    return storage.onboarding_get(f"u{uid}")
+
+
+@app.post("/api/onboarding/read")
+def onboarding_read(x_init_data: str | None = Header(default=None)):
+    uid = _resolve_user(x_init_data).get("id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Откройте приложение из Telegram")
+    return storage.onboarding_read(f"u{uid}")
+
+
+# ──────────────── Q&A (вопрос-ответ) ────────────────
+
+class QaAskReq(BaseModel):
+    question: str
+
+
+class QaAnswerReq(BaseModel):
+    id: int
+    text: str
+
+
+_QA_DAILY_LIMIT = 5
+
+
+@app.post("/api/qa/ask")
+def qa_ask(req: QaAskReq, x_init_data: str | None = Header(default=None)):
+    """Вопрос подписчика. AI отвечает сразу; владелец может ответить лично позже."""
+    u = _resolve_user(x_init_data)
+    uid = u.get("id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Откройте приложение из Telegram")
+    q = (req.question or "").strip()
+    if len(q) < 5:
+        raise HTTPException(status_code=400, detail="Сформулируй вопрос подробнее")
+    if storage.qa_count_today(f"u{uid}") >= _QA_DAILY_LIMIT:
+        raise HTTPException(status_code=429,
+                            detail="Лимит вопросов на сегодня исчерпан. Возвращайся завтра")
+    # AI-ответ (если доступен)
+    answer, by = None, None
+    if ai.available():
+        try:
+            _, ctx = ai._bezb_ai_data()
+            answer = ai.answer_qa(q, ctx)
+            by = "ai"
+        except Exception:
+            answer = None
+    qid = storage.add_qa(f"u{uid}", u.get("name", ""), q, answer, by)
+    # уведомить владельца
+    note = (f"❓ Вопрос #{qid} от {u.get('name', 'юзера')}:\n{q}")
+    if answer:
+        note += f"\n\n🤖 AI ответил. Можешь дополнить личным ответом в разделе «Вопросы»."
+    else:
+        note += "\n\nAI не ответил — ждёт твоего ответа в разделе «Вопросы»."
+    _tg_send(config.ADMIN_ID, note)
+    return {"id": qid, "question": q, "answer": answer, "answeredBy": by}
+
+
+@app.get("/api/qa/mine")
+def qa_mine(x_init_data: str | None = Header(default=None)):
+    uid = _resolve_user(x_init_data).get("id")
+    if not uid:
+        return []
+    return storage.list_qa_mine(f"u{uid}")
+
+
+@app.get("/api/qa/all")
+def qa_all(x_init_data: str | None = Header(default=None)):
+    _require_owner(x_init_data)
+    return storage.list_qa_all()
+
+
+@app.post("/api/qa/answer")
+def qa_answer(req: QaAnswerReq, x_init_data: str | None = Header(default=None)):
+    """Личный ответ владельца на вопрос — пушится пользователю в Telegram."""
+    _require_owner(x_init_data)
+    text = (req.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Пустой ответ")
+    target_uid = storage.set_qa_answer(req.id, text, "owner")
+    if not target_uid:
+        raise HTTPException(status_code=404, detail="Вопрос не найден")
+    # target_uid вида "u<id>" → достаём числовой id
+    try:
+        chat_id = int(str(target_uid).lstrip("u"))
+        _tg_send(chat_id, f"💬 Ответ на твой вопрос в «Без Б»:\n\n{text}")
+    except Exception:
+        pass
+    return {"ok": True}
+
+
 @app.post("/api/subscribe")
 def subscribe(x_init_data: str | None = Header(default=None)):
     """Подписаться на мгновенные пуши о сделках Без Б (нужна авторизация Telegram)."""
