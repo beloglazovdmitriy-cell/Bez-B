@@ -143,6 +143,63 @@ def list_drafts(limit: int = 30) -> list:
             conn.close()
 
 
+# ───────────────────────── реакции в ленте ─────────────────────────
+
+def _ensure_reactions(conn):
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS reactions ("
+        "post_id INTEGER NOT NULL, uid TEXT NOT NULL, emoji TEXT NOT NULL, "
+        "PRIMARY KEY (post_id, uid, emoji))")
+
+
+def toggle_reaction(post_id: int, uid: str, emoji: str) -> bool:
+    """Поставить/снять реакцию пользователя. True — поставлена, False — снята."""
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_reactions(conn)
+            ex = conn.execute(
+                "SELECT 1 FROM reactions WHERE post_id=? AND uid=? AND emoji=?",
+                (post_id, uid, emoji)).fetchone()
+            if ex:
+                conn.execute("DELETE FROM reactions WHERE post_id=? AND uid=? AND emoji=?",
+                             (post_id, uid, emoji))
+                res = False
+            else:
+                conn.execute("INSERT INTO reactions (post_id, uid, emoji) VALUES (?, ?, ?)",
+                             (post_id, uid, emoji))
+                res = True
+            conn.commit()
+            return res
+        finally:
+            conn.close()
+
+
+def reactions_for(post_ids: list, uid: str) -> dict:
+    """{post_id: {"counts": {emoji: n}, "mine": [emoji]}} для списка постов."""
+    if not post_ids:
+        return {}
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_reactions(conn)
+            qm = ",".join("?" * len(post_ids))
+            counts = conn.execute(
+                f"SELECT post_id, emoji, COUNT(*) FROM reactions "
+                f"WHERE post_id IN ({qm}) GROUP BY post_id, emoji", post_ids).fetchall()
+            mine = conn.execute(
+                f"SELECT post_id, emoji FROM reactions WHERE uid=? AND post_id IN ({qm})",
+                [uid] + list(post_ids)).fetchall()
+        finally:
+            conn.close()
+    out = {}
+    for pid, emoji, n in counts:
+        out.setdefault(pid, {"counts": {}, "mine": []})["counts"][emoji] = n
+    for pid, emoji in mine:
+        out.setdefault(pid, {"counts": {}, "mine": []})["mine"].append(emoji)
+    return out
+
+
 def list_published(limit: int = 50) -> list:
     """Опубликованные посты — для ленты в Mini App (публично, без гейта)."""
     with _lock:

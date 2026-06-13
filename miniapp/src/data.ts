@@ -135,7 +135,25 @@ export async function apiDigest(): Promise<string> {
 export const apiPublish = (text: string) => postJSON("/api/publish", { text });
 
 // ── Контент-студия (очередь черновиков, только владелец) ──
-export interface Draft { id: number; ts: number; kind: string; text: string; status: string; }
+export interface Draft {
+  id: number; ts: number; kind: string; text: string; status: string;
+  reactions?: Record<string, number>; mine?: string[];
+}
+export interface ReactState { counts: Record<string, number>; mine: string[]; }
+export const FEED_REACTIONS = ["🔥", "👍", "🤔"];
+
+export async function apiFeedReact(post_id: number, emoji: string): Promise<ReactState> {
+  const res = await fetch(`${API_BASE}/api/feed/react`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Init-Data": initData() },
+    body: JSON.stringify({ post_id, emoji }),
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error((e as any).detail || "Ошибка реакции");
+  }
+  return res.json();
+}
 
 async function reqJSON<T>(path: string, method = "GET"): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, { method, headers: { "X-Init-Data": initData() } });

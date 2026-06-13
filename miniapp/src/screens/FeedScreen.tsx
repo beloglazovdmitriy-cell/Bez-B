@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { apiFeed, type Draft } from "../data";
+import { apiFeed, apiFeedReact, FEED_REACTIONS, type Draft } from "../data";
 import { IconFeed } from "../components/Icons";
 
 const LABEL: Record<string, string> = {
@@ -28,6 +28,14 @@ export default function FeedScreen() {
       .finally(() => setLoading(false));
   }, []);
 
+  async function react(post: Draft, emoji: string) {
+    try {
+      const r = await apiFeedReact(post.id, emoji);
+      setPosts((ps) => ps.map((p) =>
+        p.id === post.id ? { ...p, reactions: r.counts, mine: r.mine } : p));
+    } catch { /* молча: не критично */ }
+  }
+
   return (
     <div className="content">
       {loading ? (
@@ -49,6 +57,22 @@ export default function FeedScreen() {
                 <span className="feed-date">{when(p.ts)}</span>
               </div>
               <div className="ai-text feed-text">{p.text}</div>
+              <div className="feed-reactions">
+                {FEED_REACTIONS.map((emoji) => {
+                  const mine = (p.mine || []).includes(emoji);
+                  const n = (p.reactions || {})[emoji] || 0;
+                  return (
+                    <button
+                      key={emoji}
+                      className={"react-btn" + (mine ? " active" : "")}
+                      onClick={() => react(p, emoji)}
+                    >
+                      <span className="react-emoji">{emoji}</span>
+                      {n > 0 && <span className="react-count">{n}</span>}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           ))}
         </div>

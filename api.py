@@ -509,10 +509,43 @@ def content_custom(req: TopicReq, x_init_data: str | None = Header(default=None)
     return storage.add_draft("custom", text)
 
 
+REACTIONS = ["🔥", "👍", "🤔"]
+
+
+def _reaction_uid(init_data: str | None) -> str:
+    """Стабильный uid для реакций: telegram id или 'anon' (dev/вне Telegram)."""
+    uid = _resolve_user(init_data).get("id")
+    return f"u{uid}" if uid else "anon"
+
+
 @app.get("/api/feed")
-def feed():
-    """Лента опубликованных постов — для Mini App (публично)."""
-    return storage.list_published()
+def feed(x_init_data: str | None = Header(default=None)):
+    """Лента опубликованных постов с реакциями (публично)."""
+    posts = storage.list_published()
+    uid = _reaction_uid(x_init_data)
+    rmap = storage.reactions_for([p["id"] for p in posts], uid)
+    for p in posts:
+        r = rmap.get(p["id"], {"counts": {}, "mine": []})
+        p["reactions"] = r["counts"]
+        p["mine"] = r["mine"]
+    return posts
+
+
+class ReactReq(BaseModel):
+    post_id: int
+    emoji: str
+
+
+@app.post("/api/feed/react")
+def feed_react(req: ReactReq, x_init_data: str | None = Header(default=None)):
+    """Поставить/снять реакцию (любой пользователь Telegram)."""
+    if req.emoji not in REACTIONS:
+        raise HTTPException(status_code=400, detail="Недопустимая реакция")
+    uid = _reaction_uid(x_init_data)
+    storage.toggle_reaction(req.post_id, uid, req.emoji)
+    r = storage.reactions_for([req.post_id], uid).get(
+        req.post_id, {"counts": {}, "mine": []})
+    return r
 
 
 @app.get("/api/content/drafts")
