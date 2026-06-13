@@ -19,8 +19,13 @@ CHANNEL_ID = os.getenv("CHANNEL_ID", "")
 CHANNEL_NAME = os.getenv("CHANNEL_NAME", "@BezBlogfin")
 CHANNEL_URL = os.getenv("CHANNEL_URL", "https://t.me/BezBlogfin")
 
-# Адрес Mini App (GitHub Pages) — для кнопки «Открыть приложение» в боте.
+# Адрес Mini App — для кнопки «Открыть приложение» в боте.
 MINIAPP_URL = os.getenv("MINIAPP_URL", "https://beloglazovdmitriy-cell.github.io/Bez-B/")
+
+# Ссылка на бота — для CTA-кнопки под постами в канале (в каналах web_app-кнопки
+# нельзя, только URL; ведём на бота, у него кнопка-меню открывает приложение).
+BOT_USERNAME = os.getenv("BOT_USERNAME", "BezzBot_bot")
+BOT_URL = os.getenv("BOT_URL", f"https://t.me/{BOT_USERNAME}")
 
 # Криптовалюты — котируются через Binance ({SYMBOL}USDT), фолбэк yfinance.
 CRYPTO_SYMBOLS = {

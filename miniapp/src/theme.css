@@ -134,6 +134,14 @@ body {
 .ai-text { white-space: pre-wrap; line-height: 1.62; font-size: 14.5px; color: var(--text);
   margin: 4px 0 6px; }
 
+/* контент-студия: карточки черновиков */
+.draft { padding: 12px 14px; }
+.draft-kind { font-weight: 700; font-size: 13px; color: var(--accent); margin-bottom: 4px; }
+.draft-text { max-height: 210px; overflow-y: auto; }
+.draft-actions { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+.draft-actions .cta { width: auto; flex: 1; padding: 11px; }
+.draft-actions .chip { padding: 11px 14px; }
+
 .disclaimer { color: #4a4e59; font-size: 11px; text-align: center; padding: 4px 8px 0; }
 
 /* ── нижняя навигация ── */

@@ -133,3 +133,21 @@ export async function apiDigest(): Promise<string> {
 
 // Опубликовать текст в канал (только владелец)
 export const apiPublish = (text: string) => postJSON("/api/publish", { text });
+
+// ── Контент-студия (очередь черновиков, только владелец) ──
+export interface Draft { id: number; ts: number; kind: string; text: string; status: string; }
+
+async function reqJSON<T>(path: string, method = "GET"): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, { method, headers: { "X-Init-Data": initData() } });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error((err as any).detail || "Ошибка");
+  }
+  return res.json();
+}
+
+export const apiContentGenerate = (kind: string) =>
+  reqJSON<Draft>(`/api/content/generate?kind=${kind}`, "POST");
+export const apiContentDrafts = () => reqJSON<Draft[]>("/api/content/drafts");
+export const apiContentPublish = (id: number) => reqJSON<{ ok: boolean }>(`/api/content/publish?id=${id}`, "POST");
+export const apiContentDelete = (id: number) => reqJSON<{ ok: boolean }>(`/api/content/delete?id=${id}`, "POST");

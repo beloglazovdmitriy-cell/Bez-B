@@ -2,8 +2,7 @@ import { useState } from "react";
 import {
   IconCrown, IconLock, IconCheck, IconShare, IconChannel, IconChevron, IconAI,
 } from "../components/Icons";
-import AiSheet from "../components/AiSheet";
-import { apiDigest } from "../data";
+import ContentStudio from "../components/ContentStudio";
 import { mockUser } from "../mock";
 
 type User = typeof mockUser;
@@ -17,7 +16,7 @@ const PREMIUM = [
 
 export default function ProfileScreen({ user }: { user: User }) {
   const u = user;
-  const [digest, setDigest] = useState(false);
+  const [studio, setStudio] = useState(false);
   return (
     <div className="content">
       {/* профиль */}
@@ -56,8 +55,8 @@ export default function ProfileScreen({ user }: { user: User }) {
 
       {/* инструменты автора */}
       {u.isAdmin && (
-        <button className="cta cta-ai" onClick={() => setDigest(true)}>
-          <IconAI size={18} /> Дайджест рынка → черновик в канал
+        <button className="cta cta-ai" onClick={() => setStudio(true)}>
+          <IconAI size={18} /> Контент-студия
         </button>
       )}
 
@@ -77,14 +76,7 @@ export default function ProfileScreen({ user }: { user: User }) {
 
       <div className="disclaimer">Не является индивидуальной инвестиционной рекомендацией.</div>
 
-      {digest && (
-        <AiSheet
-          title={<><IconAI size={20} /> Дайджест рынка</>}
-          load={apiDigest}
-          publishable
-          onClose={() => setDigest(false)}
-        />
-      )}
+      {studio && <ContentStudio onClose={() => setStudio(false)} />}
     </div>
   );
 }

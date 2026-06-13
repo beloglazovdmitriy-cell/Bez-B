@@ -17,6 +17,7 @@ import json
 import os
 import sqlite3
 import threading
+import time
 
 from config import DATA_FILE, DEFAULT_FAVORITES
 
@@ -99,3 +100,79 @@ def save(data):
 
 def next_trade_id(data):
     return max((t["id"] for t in data["trades"]), default=0) + 1
+
+
+# ───────────────────────── очередь черновиков контента ─────────────────────────
+
+def _ensure_drafts(conn):
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS drafts (id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "ts INTEGER NOT NULL, kind TEXT NOT NULL, text TEXT NOT NULL, "
+        "status TEXT NOT NULL DEFAULT 'draft')")
+
+
+def _draft_row(r):
+    return {"id": r[0], "ts": r[1], "kind": r[2], "text": r[3], "status": r[4]}
+
+
+def add_draft(kind: str, text: str) -> dict:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_drafts(conn)
+            cur = conn.execute(
+                "INSERT INTO drafts (ts, kind, text, status) VALUES (?, ?, ?, 'draft')",
+                (int(time.time()), kind, text))
+            conn.commit()
+            return {"id": cur.lastrowid, "ts": int(time.time()),
+                    "kind": kind, "text": text, "status": "draft"}
+        finally:
+            conn.close()
+
+
+def list_drafts(limit: int = 30) -> list:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_drafts(conn)
+            rows = conn.execute(
+                "SELECT id, ts, kind, text, status FROM drafts WHERE status='draft' "
+                "ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+            return [_draft_row(r) for r in rows]
+        finally:
+            conn.close()
+
+
+def get_draft(draft_id: int) -> dict | None:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_drafts(conn)
+            r = conn.execute(
+                "SELECT id, ts, kind, text, status FROM drafts WHERE id=?",
+                (draft_id,)).fetchone()
+            return _draft_row(r) if r else None
+        finally:
+            conn.close()
+
+
+def set_draft_status(draft_id: int, status: str):
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_drafts(conn)
+            conn.execute("UPDATE drafts SET status=? WHERE id=?", (status, draft_id))
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def delete_draft(draft_id: int):
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_drafts(conn)
+            conn.execute("DELETE FROM drafts WHERE id=?", (draft_id,))
+            conn.commit()
+        finally:
+            conn.close()

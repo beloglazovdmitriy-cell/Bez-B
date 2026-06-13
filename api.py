@@ -398,22 +398,115 @@ class PublishReq(BaseModel):
     text: str
 
 
+def _cta_kb():
+    return {"inline_keyboard": [[{"text": "📈 Открыть Без Б", "url": config.BOT_URL}]]}
+
+
+def _channel_post(text: str, chart: bytes | None = None):
+    """Опубликовать в канал: опц. график (фото) + текст с CTA-кнопкой."""
+    import requests
+    base = f"https://api.telegram.org/bot{config.BOT_TOKEN}"
+    if chart:
+        try:
+            requests.post(f"{base}/sendPhoto", data={"chat_id": config.CHANNEL_ID},
+                          files={"photo": ("bezb.png", chart, "image/png")}, timeout=25)
+        except Exception:
+            pass  # без графика не критично
+    r = requests.post(f"{base}/sendMessage", json={
+        "chat_id": config.CHANNEL_ID, "text": text, "reply_markup": _cta_kb()}, timeout=20)
+    if not r.json().get("ok"):
+        raise RuntimeError(r.text)
+
+
+def _chart_for(kind: str) -> bytes | None:
+    """Подобрать график под рубрику (портфель Без Б)."""
+    try:
+        import charts
+        storage.use_uid("bezb")
+        s = portfolio.summary()
+        if kind in ("scenarios", "trade", "portfolio"):
+            return charts.composition_pie(portfolio.pie_slices(s))
+        return charts.index_line()
+    except Exception:
+        return None
+
+
+def _require_owner(init_data):
+    if not _resolve_user(init_data)["isAdmin"]:
+        raise HTTPException(status_code=403, detail="Только владелец")
+
+
 @app.post("/api/publish")
 def publish(req: PublishReq, x_init_data: str | None = Header(default=None)):
     """Опубликовать текст в канал (только владелец)."""
-    if not _resolve_user(x_init_data)["isAdmin"]:
-        raise HTTPException(status_code=403, detail="Только владелец")
+    _require_owner(x_init_data)
     if not config.CHANNEL_ID:
         raise HTTPException(status_code=400, detail="Канал не подключён (задай CHANNEL_ID)")
-    import requests
     try:
-        r = requests.post(
-            f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage",
-            json={"chat_id": config.CHANNEL_ID, "text": req.text}, timeout=15)
-        if not r.json().get("ok"):
-            raise RuntimeError(r.text)
+        _channel_post(req.text)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Не удалось опубликовать: {e}")
+    return {"ok": True}
+
+
+# ──────────── Контент-студия (очередь черновиков, только владелец) ────────────
+
+def _bezb_digest_ctx() -> str:
+    storage.use_uid("bezb")
+    s = portfolio.summary()
+    pv = s["positions_value_usdt"] or 1
+    return (f"Баланс {s['value_rub']:,.0f}₽, индекс Без Б {s['index']:.0f} пт. Позиции: "
+            + (", ".join(f"{p.ticker} {p.value_usd / pv * 100:.0f}%" for p in s["positions"])
+               or "только кэш")).replace(",", " ")
+
+
+@app.post("/api/content/generate")
+def content_generate(kind: str, x_init_data: str | None = Header(default=None)):
+    _require_owner(x_init_data)
+    _ai_or_503()
+    try:
+        if kind == "digest":
+            text = ai.market_digest(_bezb_digest_ctx())
+        elif kind == "scenarios":
+            storage.use_uid("bezb")
+            text = ai.scenarios(_ai_portfolio_data("bezb"))
+        elif kind in ("edu", "manifest", "bullshit"):
+            text = ai.content_post(kind)
+        else:
+            raise HTTPException(status_code=400, detail="неизвестная рубрика")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"AI временно недоступен: {e}")
+    return storage.add_draft(kind, text)
+
+
+@app.get("/api/content/drafts")
+def content_drafts(x_init_data: str | None = Header(default=None)):
+    _require_owner(x_init_data)
+    return storage.list_drafts()
+
+
+@app.post("/api/content/publish")
+def content_publish(id: int, x_init_data: str | None = Header(default=None)):
+    _require_owner(x_init_data)
+    if not config.CHANNEL_ID:
+        raise HTTPException(status_code=400, detail="Канал не подключён")
+    d = storage.get_draft(id)
+    if not d:
+        raise HTTPException(status_code=404, detail="Черновик не найден")
+    try:
+        _channel_post(d["text"], _chart_for(d["kind"]))
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Не удалось опубликовать: {e}")
+    storage.set_draft_status(id, "published")
+    return {"ok": True}
+
+
+@app.post("/api/content/delete")
+def content_delete(id: int, x_init_data: str | None = Header(default=None)):
+    _require_owner(x_init_data)
+    storage.delete_draft(id)
     return {"ok": True}
 
 
