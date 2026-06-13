@@ -256,6 +256,43 @@ def index_line() -> bytes:
     return _render(fig)
 
 
+def fear_greed_gauge(value: int, label: str = "") -> bytes:
+    """Полукруглый спидометр индекса страха и жадности (0–100)."""
+    import numpy as np
+    from matplotlib.patches import Wedge
+    v = max(0, min(100, int(value)))
+    fig, ax = plt.subplots(figsize=(7, 4.3))
+    ax.set_xlim(-1.3, 1.3)
+    ax.set_ylim(-0.35, 1.2)
+    ax.set_aspect("equal")
+    ax.axis("off")
+    zones = [(0, 25, _RED), (25, 45, "#ff9800"), (45, 55, "#ffd54f"),
+             (55, 75, "#9ccc65"), (75, 100, _ACCENT)]
+    R, w = 1.0, 0.34
+    for lo, hi, c in zones:
+        a1 = 180 - hi / 100 * 180
+        a2 = 180 - lo / 100 * 180
+        ax.add_patch(Wedge((0, 0), R, a1, a2, width=w,
+                           facecolor=c, edgecolor="#0e1117", lw=1.5))
+    ang = np.radians(180 - v / 100 * 180)
+    rr = R - w - 0.03
+    ax.plot([0, rr * np.cos(ang)], [0, rr * np.sin(ang)],
+            color="#ffffff", lw=3, zorder=4)
+    ax.add_patch(plt.Circle((0, 0), 0.045, color="#ffffff", zorder=5))
+    ax.text(0, -0.2, str(v), ha="center", va="center",
+            fontsize=36, fontweight="bold", color="#ffffff")
+    if label:
+        ax.text(0, 0.5, label, ha="center", va="center",
+                fontsize=16, fontweight="bold", color="#d1d4dc")
+    ax.text(-1.08, -0.06, "Страх", ha="center", color=_RED,
+            fontsize=11, fontweight="bold")
+    ax.text(1.08, -0.06, "Жадность", ha="center", color=_ACCENT,
+            fontsize=11, fontweight="bold")
+    ax.set_title("Индекс страха и жадности · крипта",
+                 color="#d1d4dc", fontweight="bold", pad=4)
+    return _render(fig)
+
+
 def _render(fig) -> bytes:
     buf = io.BytesIO()
     fig.tight_layout()

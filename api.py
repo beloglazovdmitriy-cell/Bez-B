@@ -422,6 +422,10 @@ def _chart_for(kind: str) -> bytes | None:
     """Подобрать график под рубрику (портфель Без Б)."""
     try:
         import charts
+        if kind == "crowd":
+            import market_mood
+            f = market_mood.snapshot().get("fng")
+            return charts.fear_greed_gauge(f["value"], f.get("label_ru", "")) if f else None
         storage.use_uid("bezb")
         s = portfolio.summary()
         if kind in ("scenarios", "trade", "portfolio"):
@@ -470,6 +474,9 @@ def content_generate(kind: str, x_init_data: str | None = Header(default=None)):
         elif kind == "scenarios":
             storage.use_uid("bezb")
             text = ai.scenarios(_ai_portfolio_data("bezb"))
+        elif kind == "crowd":
+            import market_mood
+            text = ai.crowd_post(market_mood.context())
         elif kind in ("edu", "manifest", "bullshit"):
             text = ai.content_post(kind)
         else:

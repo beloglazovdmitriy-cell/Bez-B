@@ -1024,6 +1024,7 @@ _SAT_HOUR = int(os.getenv("CONTENT_SAT_HOUR", "11"))          # суббота �
 _KIND_LABEL = {
     "digest": "📰 Дайджест", "scenarios": "🔮 Сценарии", "edu": "📚 Ликбез",
     "manifest": "🧭 Манифест", "bullshit": "🚩 Детектор буллшита",
+    "crowd": "🌡 Разбор толпы",
 }
 
 
@@ -1039,6 +1040,8 @@ async def _make_draft(context: ContextTypes.DEFAULT_TYPE, kind: str):
             text = await asyncio.to_thread(ai.digest_bezb)
         elif kind == "scenarios":
             text = await asyncio.to_thread(ai.scenarios_bezb)
+        elif kind == "crowd":
+            text = await asyncio.to_thread(ai.crowd_bezb)
         else:
             text = await asyncio.to_thread(ai.content_post, kind)
         storage.use_uid("bezb")
@@ -1060,8 +1063,9 @@ async def job_content_morning(context: ContextTypes.DEFAULT_TYPE):
 
 
 async def job_content_midday(context: ContextTypes.DEFAULT_TYPE):
-    """Рубрика дня: Вт ликбез, Чт детектор буллшита, Пт сценарии."""
-    kind = {1: "edu", 3: "bullshit", 4: "scenarios"}.get(datetime.now().weekday())
+    """Рубрика дня: Вт ликбез, Ср разбор толпы, Чт детектор буллшита, Пт сценарии."""
+    kind = {1: "edu", 2: "crowd", 3: "bullshit", 4: "scenarios"}.get(
+        datetime.now().weekday())
     if kind:
         await _make_draft(context, kind)
 

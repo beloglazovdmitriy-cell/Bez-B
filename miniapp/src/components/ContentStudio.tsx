@@ -7,14 +7,16 @@ import { IconAI, IconChannel } from "./Icons";
 
 const RUBRICS: { kind: string; label: string }[] = [
   { kind: "digest", label: "📰 Дайджест" },
+  { kind: "crowd", label: "🌡 Разбор толпы" },
   { kind: "scenarios", label: "🔮 Сценарии" },
   { kind: "edu", label: "📚 Ликбез" },
   { kind: "manifest", label: "🧭 Манифест" },
   { kind: "bullshit", label: "🚩 Детектор Б" },
 ];
 const LABEL: Record<string, string> = {
-  digest: "📰 Дайджест", scenarios: "🔮 Сценарии", edu: "📚 Ликбез",
-  manifest: "🧭 Манифест", bullshit: "🚩 Детектор буллшита", trade: "🧠 Сделка",
+  digest: "📰 Дайджест", crowd: "🌡 Разбор толпы", scenarios: "🔮 Сценарии",
+  edu: "📚 Ликбез", manifest: "🧭 Манифест", bullshit: "🚩 Детектор буллшита",
+  trade: "🧠 Сделка",
 };
 
 export default function ContentStudio({ onClose }: { onClose: () => void }) {
