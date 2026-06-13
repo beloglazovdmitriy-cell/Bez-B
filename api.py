@@ -300,21 +300,39 @@ def journal(p: str = "bezb", x_init_data: str | None = Header(default=None)):
     out = []
     for t in portfolio.get_operations():
         ttype = t.get("type") or t.get("side")
-        if ttype not in ("buy", "sell", "asset_deposit"):
+        date = datetime.fromtimestamp(t["ts"]).strftime("%d.%m")
+        # ввод/вывод кэша = покупка/вывод USDT
+        if ttype in ("deposit", "withdraw"):
+            usdt = float(t.get("usdt", 0))
+            rate = t.get("rate_rub")
+            reason = t.get("reason", "")
+            if not reason and ttype == "deposit" and rate:
+                reason = f"по курсу {rate:.2f} ₽".replace(".", ",")
+            out.append({
+                "id": t["id"], "date": date,
+                "side": ttype,                      # "deposit" | "withdraw"
+                "ticker": "USDT",
+                "qty": round(usdt, 2),
+                "amountUsd": round(usdt),
+                "price": 1.0,
+                "sharePct": 0,
+                "reason": reason,
+            })
+        elif ttype in ("buy", "sell", "asset_deposit"):
+            price = t.get("price_usdt", t.get("price_usd"))
+            amount = t.get("amount_usdt", t["qty"] * price)
+            out.append({
+                "id": t["id"], "date": date,
+                "side": "sell" if ttype == "sell" else "buy",
+                "ticker": t["ticker"],
+                "qty": round(t["qty"], 8),
+                "amountUsd": round(amount),
+                "price": round(price, 6),
+                "sharePct": round(shares.get(t["ticker"], 0)),
+                "reason": t.get("reason", ""),
+            })
+        else:
             continue
-        price = t.get("price_usdt", t.get("price_usd"))
-        amount = t.get("amount_usdt", t["qty"] * price)
-        out.append({
-            "id": t["id"],
-            "date": datetime.fromtimestamp(t["ts"]).strftime("%d.%m"),
-            "side": "sell" if ttype == "sell" else "buy",
-            "ticker": t["ticker"],
-            "qty": round(t["qty"], 8),
-            "amountUsd": round(amount),
-            "price": round(price, 6),
-            "sharePct": round(shares.get(t["ticker"], 0)),
-            "reason": t.get("reason", ""),
-        })
         if len(out) >= 20:
             break
     return out

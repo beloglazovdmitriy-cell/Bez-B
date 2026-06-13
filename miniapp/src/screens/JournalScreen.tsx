@@ -35,24 +35,29 @@ export default function JournalScreen({
 
       <div className="feed">
         {journal.map((e) => {
-          const buy = e.side === "buy";
+          const inflow = e.side === "buy" || e.side === "deposit";
+          const cash = e.side === "deposit" || e.side === "withdraw";
+          const title = e.side === "deposit" ? "Купил" : e.side === "withdraw"
+            ? "Вывел" : e.side === "buy" ? "Купил" : "Продал";
           return (
             <div className="entry" key={e.id}>
-              <div className={`entry-ic ${buy ? "buy" : "sell"}`}>
-                {buy ? <IconArrowDown size={18} /> : <IconArrowUp size={18} />}
+              <div className={`entry-ic ${inflow ? "buy" : "sell"}`}>
+                {inflow ? <IconArrowDown size={18} /> : <IconArrowUp size={18} />}
               </div>
               <div className="entry-body">
                 <div className="entry-top">
                   <span className="entry-title">
-                    {buy ? "Купил" : "Продал"} <b>{e.ticker}</b> на ${fmt(e.amountUsd)}
+                    {title} <b>{e.ticker}</b> на ${fmt(e.amountUsd)}
                   </span>
                   <span className="entry-date">{e.date}</span>
                 </div>
-                <div className="entry-sub">
-                  {fmtQty(e.qty)} {e.ticker} по ${fmtPrice(e.price)} · доля {e.sharePct}%
-                </div>
+                {!cash && (
+                  <div className="entry-sub">
+                    {fmtQty(e.qty)} {e.ticker} по ${fmtPrice(e.price)} · доля {e.sharePct}%
+                  </div>
+                )}
                 {e.reason && <div className="entry-reason">{e.reason}</div>}
-                {canComment && (
+                {canComment && !cash && (
                   <button className="entry-ai" onClick={() => setCommentId(e.id)}>
                     <IconAI size={14} /> AI-разбор → в канал
                   </button>

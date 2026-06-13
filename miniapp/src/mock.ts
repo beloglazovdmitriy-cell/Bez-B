@@ -68,7 +68,7 @@ export const mockBench: BenchRow[] = [
 export interface JournalEntry {
   id: number;
   date: string;
-  side: "buy" | "sell";
+  side: "buy" | "sell" | "deposit" | "withdraw";
   ticker: string;
   qty: number;
   amountUsd: number;
