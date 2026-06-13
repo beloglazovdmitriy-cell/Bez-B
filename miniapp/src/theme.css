@@ -229,6 +229,13 @@ body {
 .switch.on { background: rgba(38,166,154,.25); border-color: var(--accent); }
 .switch.on .knob { transform: translateX(18px); background: var(--accent); }
 
+/* ── Сегмент-контрол (переключатель режимов) ── */
+.seg { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 4px; margin-bottom: 12px; }
+.seg-btn { flex: 1; padding: 9px; border: none; background: transparent; color: var(--muted);
+  font-size: 14px; font-weight: 600; border-radius: 9px; cursor: pointer; transition: background .12s, color .12s; }
+.seg-btn.on { background: var(--surface-2); color: var(--text); }
+
 /* ── Стрик дисциплины DCA ── */
 .dca { padding: 14px 16px; }
 .dca-top { display: flex; align-items: center; gap: 14px; }

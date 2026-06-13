@@ -636,6 +636,21 @@ def home():
     return {"mood": mood, "digest": digest, "bezbToday": today_trade}
 
 
+@app.get("/api/sandbox/dca")
+def sandbox_dca(ticker: str = "BTC", amount: float = 50, years: float = 2):
+    """DCA-песочница: бэктест взносов по $amount каждые 2 недели (крипта). Публично."""
+    if amount <= 0 or years <= 0:
+        raise HTTPException(status_code=400, detail="Неверные параметры")
+    try:
+        import sandbox
+        res = sandbox.simulate(ticker, amount, years)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Нет данных истории: {e}")
+    if not res:
+        raise HTTPException(status_code=404, detail=f"Нет истории по {ticker} (только крипта)")
+    return res
+
+
 @app.get("/api/dca")
 def dca(x_init_data: str | None = Header(default=None)):
     """Состояние стрика дисциплины DCA пользователя."""

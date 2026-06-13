@@ -91,6 +91,16 @@ export interface Dca {
 }
 export const apiDca = () => reqJSON<Dca>("/api/dca");
 export const apiDcaCheckin = () => reqJSON<Dca>("/api/dca/checkin", "POST");
+
+// ── DCA-песочница (бэктест на истории) ──
+export interface SandboxPoint { date: string; invested: number; value: number; }
+export interface SandboxResult {
+  ticker: string; amount: number; everyWeeks: number; weeks: number;
+  invested: number; value: number; units: number; profitPct: number;
+  firstPrice: number; lastPrice: number; priceChangePct: number; points: SandboxPoint[];
+}
+export const apiSandboxDca = (ticker: string, amount: number, years: number) =>
+  reqJSON<SandboxResult>(`/api/sandbox/dca?ticker=${ticker}&amount=${amount}&years=${years}`);
 export const apiDepositAsset = (pf: Pf, b: { ticker: string; amountUsdt: number; price?: number; reason?: string }) =>
   postJSON(`/api/deposit_asset?p=${pf}`, b);
 

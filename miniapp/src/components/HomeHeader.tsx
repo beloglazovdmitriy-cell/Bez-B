@@ -52,7 +52,7 @@ export default function HomeHeader() {
         <div className="card home-mood">
           <Gauge value={m.value} />
           <div className="home-mood-side">
-            <div className="home-cap">Индекс страха и жадности</div>
+            <div className="home-cap">Индекс страха и жадности · крипторынок</div>
             <div className="home-mood-label" style={{ color: moodColor(m.value) }}>{m.label}</div>
             <div className="home-mood-prev">
               вчера {m.prev} {m.trend === "up" ? "↑" : m.trend === "down" ? "↓" : "→"}

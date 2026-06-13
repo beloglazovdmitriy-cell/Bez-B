@@ -1,4 +1,5 @@
 import { useState } from "react";
+import SandboxDca from "../components/SandboxDca";
 
 const W = 320, H = 160, PAD = 8;
 const fmt = (n: number) =>
@@ -29,6 +30,7 @@ const YEARS = [5, 10, 20, 30];
 const DELAY = [0, 1, 2, 5];
 
 export default function CalcScreen() {
+  const [mode, setMode] = useState<"calc" | "dca">("calc");
   const [start, setStart] = useState("0");
   const [monthly, setMonthly] = useState("20000");
   const [annual, setAnnual] = useState("20");
@@ -55,6 +57,14 @@ export default function CalcScreen() {
 
   return (
     <div className="content">
+      <div className="seg">
+        <button className={`seg-btn ${mode === "calc" ? "on" : ""}`}
+          onClick={() => setMode("calc")}>Калькулятор</button>
+        <button className={`seg-btn ${mode === "dca" ? "on" : ""}`}
+          onClick={() => setMode("dca")}>Песочница DCA</button>
+      </div>
+
+      {mode === "dca" ? <SandboxDca /> : (<>
       <div className="section-title" style={{ marginTop: 4 }}>
         Калькулятор капитала · сложный процент
       </div>
@@ -128,6 +138,7 @@ export default function CalcScreen() {
       <div className="disclaimer">
         Расчёт при постоянной доходности; реальные рынки колеблются. Не ИИР.
       </div>
+      </>)}
     </div>
   );
 }
