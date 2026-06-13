@@ -82,6 +82,15 @@ export const apiWithdraw = (pf: Pf, b: { amountUsdt: number }) =>
 // ── подписка на мгновенные пуши о сделках Без Б ──
 export const apiSubscribe = () => reqJSON<{ ok: boolean; isSubscribed: boolean }>("/api/subscribe", "POST");
 export const apiUnsubscribe = () => reqJSON<{ ok: boolean; isSubscribed: boolean }>("/api/unsubscribe", "POST");
+
+// ── стрик дисциплины DCA ──
+export interface Dca {
+  streak: number; longest: number; total: number; lastTs: number | null;
+  canCheckIn: boolean; nextInDays: number; atRisk: boolean; anon?: boolean;
+  result?: "started" | "on_time" | "reset" | "early"; ok?: boolean;
+}
+export const apiDca = () => reqJSON<Dca>("/api/dca");
+export const apiDcaCheckin = () => reqJSON<Dca>("/api/dca/checkin", "POST");
 export const apiDepositAsset = (pf: Pf, b: { ticker: string; amountUsdt: number; price?: number; reason?: string }) =>
   postJSON(`/api/deposit_asset?p=${pf}`, b);
 

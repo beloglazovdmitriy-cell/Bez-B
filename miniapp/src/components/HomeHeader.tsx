@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { apiHome, type Home } from "../data";
+import DcaStreak from "./DcaStreak";
 
 const SIDE_LABEL = { buy: "купил", sell: "продал" } as const;
 
@@ -42,12 +43,11 @@ export default function HomeHeader() {
 
   useEffect(() => { apiHome().then(setH).catch(() => setH(null)); }, []);
 
-  if (!h || (!h.mood && !h.digest && !h.bezbToday)) return null;
-
-  const m = h.mood;
-  const t = h.bezbToday;
+  const m = h?.mood;
+  const t = h?.bezbToday;
   return (
     <div className="home">
+      <DcaStreak />
       {m && (
         <div className="card home-mood">
           <Gauge value={m.value} />
@@ -72,7 +72,7 @@ export default function HomeHeader() {
         </div>
       )}
 
-      {h.digest && (
+      {h?.digest && (
         <div className="card home-digest">
           <div className="home-cap">📰 Рынок за 60 секунд</div>
           <div className="ai-text home-digest-text">{h.digest.text}</div>

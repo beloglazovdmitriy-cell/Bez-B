@@ -258,6 +258,84 @@ def list_subscribers() -> list:
             conn.close()
 
 
+# ──────────────── стрик дисциплины DCA (геймификация привычки) ────────────────
+# Привычка: вносить DCA-взнос раз в 2 недели. Отметка «внёс» наращивает серию.
+# Слишком рано (<10 дн) — не засчитываем; пропуск (>21 дн) — серия сбрасывается.
+
+_DCA_EARLY = 10 * 86400      # раньше нельзя отметить следующий взнос
+_DCA_GRACE = 21 * 86400      # позже = пропуск, серия начинается заново
+
+
+def _ensure_dca(conn):
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS dca ("
+        "uid TEXT PRIMARY KEY, last_ts INTEGER, streak INTEGER, "
+        "longest INTEGER, total INTEGER)")
+
+
+def dca_get(uid: str) -> dict:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_dca(conn)
+            row = conn.execute(
+                "SELECT last_ts, streak, longest, total FROM dca WHERE uid=?",
+                (uid,)).fetchone()
+        finally:
+            conn.close()
+    now = int(time.time())
+    if not row:
+        return {"streak": 0, "longest": 0, "total": 0, "lastTs": None,
+                "canCheckIn": True, "nextInDays": 0, "atRisk": False}
+    last_ts, streak, longest, total = row
+    elapsed = now - (last_ts or 0)
+    can = elapsed >= _DCA_EARLY
+    next_in = 0 if can else int((_DCA_EARLY - elapsed) // 86400) + 1
+    return {"streak": streak, "longest": longest, "total": total,
+            "lastTs": last_ts, "canCheckIn": can, "nextInDays": next_in,
+            "atRisk": elapsed > _DCA_GRACE}
+
+
+def dca_checkin(uid: str) -> dict:
+    """Отметить взнос. result: started | on_time | reset | early."""
+    now = int(time.time())
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_dca(conn)
+            row = conn.execute(
+                "SELECT last_ts, streak, longest, total FROM dca WHERE uid=?",
+                (uid,)).fetchone()
+            if not row:
+                streak, longest, total, result = 1, 1, 1, "started"
+            else:
+                last_ts, streak, longest, total = row
+                elapsed = now - (last_ts or 0)
+                if elapsed < _DCA_EARLY:
+                    result = "early"
+                else:
+                    if elapsed > _DCA_GRACE:
+                        streak, result = 1, "reset"
+                    else:
+                        streak, result = streak + 1, "on_time"
+                    total += 1
+                    longest = max(longest, streak)
+            if result != "early":
+                conn.execute(
+                    "INSERT INTO dca (uid, last_ts, streak, longest, total) "
+                    "VALUES (?,?,?,?,?) ON CONFLICT(uid) DO UPDATE SET "
+                    "last_ts=excluded.last_ts, streak=excluded.streak, "
+                    "longest=excluded.longest, total=excluded.total",
+                    (uid, now, streak, longest, total))
+                conn.commit()
+        finally:
+            conn.close()
+    st = dca_get(uid)
+    st["result"] = result
+    st["ok"] = result != "early"
+    return st
+
+
 def list_published(limit: int = 50) -> list:
     """Опубликованные посты — для ленты в Mini App (публично, без гейта)."""
     with _lock:

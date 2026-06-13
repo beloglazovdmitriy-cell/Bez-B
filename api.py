@@ -618,6 +618,25 @@ def home():
     return {"mood": mood, "digest": digest, "bezbToday": today_trade}
 
 
+@app.get("/api/dca")
+def dca(x_init_data: str | None = Header(default=None)):
+    """Состояние стрика дисциплины DCA пользователя."""
+    uid = _resolve_user(x_init_data).get("id")
+    if not uid:
+        return {"streak": 0, "longest": 0, "total": 0, "lastTs": None,
+                "canCheckIn": False, "nextInDays": 0, "atRisk": False, "anon": True}
+    return storage.dca_get(f"u{uid}")
+
+
+@app.post("/api/dca/checkin")
+def dca_checkin(x_init_data: str | None = Header(default=None)):
+    """Отметить DCA-взнос (наращивает серию). Нужна авторизация Telegram."""
+    uid = _resolve_user(x_init_data).get("id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Откройте приложение из Telegram")
+    return storage.dca_checkin(f"u{uid}")
+
+
 @app.post("/api/subscribe")
 def subscribe(x_init_data: str | None = Header(default=None)):
     """Подписаться на мгновенные пуши о сделках Без Б (нужна авторизация Telegram)."""
