@@ -97,6 +97,7 @@ export interface SandboxPoint { date: string; invested: number; value: number; }
 export interface SandboxResult {
   ticker: string; amount: number; everyWeeks: number; weeks: number;
   invested: number; value: number; units: number; profitPct: number;
+  avgPrice: number; lumpValue: number; lumpProfitPct: number;
   firstPrice: number; lastPrice: number; priceChangePct: number; points: SandboxPoint[];
 }
 export const apiSandboxDca = (ticker: string, amount: number, years: number) =>

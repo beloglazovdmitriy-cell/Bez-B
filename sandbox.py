@@ -60,6 +60,10 @@ def simulate(ticker: str, amount: float, years: float, every: int = 2) -> dict |
     last_price = closes[-1][1]
     first_price = closes[0][1]
     value = units * last_price
+    # бенчмарк DCA: вложить ту же сумму единоразово в начале периода
+    lump_units = invested / first_price if first_price else 0.0
+    lump_value = lump_units * last_price
+    avg_price = invested / units if units else 0.0
     return {
         "ticker": ticker.strip().upper(),
         "amount": amount,
@@ -69,6 +73,9 @@ def simulate(ticker: str, amount: float, years: float, every: int = 2) -> dict |
         "value": round(value),
         "units": units,
         "profitPct": round((value / invested - 1) * 100, 1) if invested else 0.0,
+        "avgPrice": round(avg_price, 2),
+        "lumpValue": round(lump_value),
+        "lumpProfitPct": round((lump_value / invested - 1) * 100, 1) if invested else 0.0,
         "firstPrice": first_price,
         "lastPrice": last_price,
         "priceChangePct": round((last_price / first_price - 1) * 100, 1) if first_price else 0.0,

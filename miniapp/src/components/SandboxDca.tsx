@@ -121,15 +121,43 @@ export default function SandboxDca() {
             </div>
           </div>
 
+          <div className="card sand-compare">
+            <div className="sc-row">
+              <span>DCA — по ${amount} каждые 2 недели</span>
+              <b className={up ? "pos" : "neg"}>{up ? "+" : ""}{res.profitPct}%</b>
+            </div>
+            <div className="sc-row">
+              <span>Если вложить всё сразу в начале</span>
+              <b className={res.lumpProfitPct >= 0 ? "pos" : "neg"}>
+                {res.lumpProfitPct >= 0 ? "+" : ""}{res.lumpProfitPct}%
+              </b>
+            </div>
+            <div className="sc-row muted">
+              <span>Средняя цена входа</span>
+              <b>${fmt(res.avgPrice)}</b>
+            </div>
+          </div>
+
           <div className="card insight">
-            Если бы вносил <b>${amount}</b> в {ticker} каждые 2 недели —{" "}
-            сделал бы <b>{Math.ceil(res.weeks / 2)}</b> взносов.{" "}
-            Цена {ticker} за период {res.priceChangePct >= 0 ? "выросла" : "упала"} на{" "}
-            <b className={res.priceChangePct >= 0 ? "pos" : "neg"}>
-              {res.priceChangePct >= 0 ? "+" : ""}{res.priceChangePct}%
-            </b>, а портфель — на{" "}
-            <b className={up ? "pos" : "neg"}>{up ? "+" : ""}{res.profitPct}%</b>:{" "}
-            регулярность сглаживает вход.
+            {(() => {
+              const dcaBetter = res.profitPct >= res.lumpProfitPct;
+              const grew = res.priceChangePct >= 0;
+              if (dcaBetter) {
+                return (<>
+                  Здесь DCA сработал <b className="pos">лучше</b>, чем вложить всё сразу{" "}
+                  ({res.profitPct >= 0 ? "+" : ""}{res.profitPct}% против{" "}
+                  {res.lumpProfitPct >= 0 ? "+" : ""}{res.lumpProfitPct}%): регулярные покупки
+                  усреднили вход на просадках. Это сила DCA на падающем и боковом рынке.
+                </>);
+              }
+              return (<>
+                Здесь вложить всё в начале было бы <b className="neg">выгоднее</b>{" "}
+                ({res.lumpProfitPct >= 0 ? "+" : ""}{res.lumpProfitPct}% против{" "}
+                {res.profitPct >= 0 ? "+" : ""}{res.profitPct}%): {grew ? "цена росла" : "рынок дёргался"},
+                и поздние покупки подняли средний вход. DCA — это не про максимум доходности,
+                а про <b className="pos">дисциплину</b> и защиту от плохого тайминга.
+              </>);
+            })()}
           </div>
         </>
       ) : null}
