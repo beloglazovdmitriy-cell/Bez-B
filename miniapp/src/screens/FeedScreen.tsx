@@ -5,7 +5,7 @@ import { IconFeed } from "../components/Icons";
 const LABEL: Record<string, string> = {
   digest: "📰 Дайджест", crowd: "🌡 Разбор толпы", scenarios: "🔮 Сценарии",
   edu: "📚 Ликбез", manifest: "🧭 Манифест", bullshit: "🚩 Детектор буллшита",
-  trade: "🧠 Разбор сделки",
+  trade: "🧠 Разбор сделки", custom: "✍️ Пост",
 };
 
 function when(ts: number): string {

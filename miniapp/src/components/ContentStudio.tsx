@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   apiContentGenerate, apiContentDrafts, apiContentPublish, apiContentDelete,
-  apiContentUpdate, type Draft,
+  apiContentUpdate, apiContentCustom, type Draft,
 } from "../data";
 import { IconAI, IconChannel } from "./Icons";
 
@@ -16,7 +16,7 @@ const RUBRICS: { kind: string; label: string }[] = [
 const LABEL: Record<string, string> = {
   digest: "📰 Дайджест", crowd: "🌡 Разбор толпы", scenarios: "🔮 Сценарии",
   edu: "📚 Ликбез", manifest: "🧭 Манифест", bullshit: "🚩 Детектор буллшита",
-  trade: "🧠 Сделка",
+  trade: "🧠 Сделка", custom: "✍️ Моя тема",
 };
 
 export default function ContentStudio({ onClose }: { onClose: () => void }) {
@@ -26,6 +26,7 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(true);
   const [editId, setEditId] = useState<number | null>(null);  // id черновика в правке
   const [editText, setEditText] = useState("");
+  const [topic, setTopic] = useState("");                     // своя тема/задача
 
   function refresh() {
     apiContentDrafts().then(setDrafts).catch((e) => setNote((e as Error).message))
@@ -36,6 +37,14 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
   async function generate(kind: string) {
     setBusy(kind); setNote("");
     try { await apiContentGenerate(kind); refresh(); }
+    catch (e) { setNote((e as Error).message); }
+    finally { setBusy(""); }
+  }
+  async function generateCustom() {
+    const t = topic.trim();
+    if (!t) { setNote("Опиши тему или задачу"); return; }
+    setBusy("custom"); setNote("");
+    try { await apiContentCustom(t); setTopic(""); refresh(); }
     catch (e) { setNote((e as Error).message); }
     finally { setBusy(""); }
   }
@@ -72,6 +81,15 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
             </button>
           ))}
         </div>
+
+        <div className="field-label">Своя тема / задача</div>
+        <textarea className="draft-edit" rows={3} value={topic}
+          placeholder="Напр.: объясни, почему usd-cost-averaging спасает новичков от паники"
+          onChange={(e) => setTopic(e.target.value)} style={{ minHeight: 70 }} />
+        <button className="cta" disabled={!!busy} onClick={generateCustom}
+          style={{ marginTop: 8, marginBottom: 12 }}>
+          <IconAI size={16} /> {busy === "custom" ? "Создаю…" : "Создать по моей теме"}
+        </button>
 
         {note && <div className="muted-note" style={{ marginBottom: 8 }}>{note}</div>}
 

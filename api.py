@@ -398,6 +398,10 @@ class PublishReq(BaseModel):
     text: str
 
 
+class TopicReq(BaseModel):
+    topic: str
+
+
 def _cta_kb():
     return {"inline_keyboard": [[{"text": "📈 Открыть Без Б", "url": config.BOT_URL}]]}
 
@@ -422,6 +426,8 @@ def _chart_for(kind: str) -> bytes | None:
     """Подобрать график под рубрику (портфель Без Б)."""
     try:
         import charts
+        if kind == "custom":
+            return None
         if kind == "crowd":
             import market_mood
             f = market_mood.snapshot().get("fng")
@@ -486,6 +492,21 @@ def content_generate(kind: str, x_init_data: str | None = Header(default=None)):
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI временно недоступен: {e}")
     return storage.add_draft(kind, text)
+
+
+@app.post("/api/content/custom")
+def content_custom(req: TopicReq, x_init_data: str | None = Header(default=None)):
+    """Создать черновик по своей теме/задаче (только владелец)."""
+    _require_owner(x_init_data)
+    _ai_or_503()
+    topic = (req.topic or "").strip()
+    if not topic:
+        raise HTTPException(status_code=400, detail="Пустая тема")
+    try:
+        text = ai.custom_post(topic)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"AI временно недоступен: {e}")
+    return storage.add_draft("custom", text)
 
 
 @app.get("/api/feed")

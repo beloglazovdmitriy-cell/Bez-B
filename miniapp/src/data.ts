@@ -153,3 +153,4 @@ export const apiContentDrafts = () => reqJSON<Draft[]>("/api/content/drafts");
 export const apiContentPublish = (id: number) => reqJSON<{ ok: boolean }>(`/api/content/publish?id=${id}`, "POST");
 export const apiContentDelete = (id: number) => reqJSON<{ ok: boolean }>(`/api/content/delete?id=${id}`, "POST");
 export const apiContentUpdate = (id: number, text: string) => postJSON(`/api/content/update?id=${id}`, { text });
+export const apiContentCustom = (topic: string) => postJSON("/api/content/custom", { topic });
