@@ -156,7 +156,7 @@ def benchmark_bar(results) -> bytes:
     return _render(fig)
 
 
-def result_card(s, channel_name="@BezBlogfin") -> bytes:
+def result_card(s, channel_name="Без Б") -> bytes:
     """Брендированная карточка результата для шеринга (4:5).
 
     Показывает доходность в ₽ и $, баланс, мини-график и ссылку на канал."""

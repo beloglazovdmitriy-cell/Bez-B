@@ -57,6 +57,11 @@ body {
 }
 .brand span { color: var(--accent); }
 .brand-btc { vertical-align: middle; }
+/* единый бренд-знак в строке (кнопки, заголовки, подписи) */
+.brand-inline {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-weight: 800; letter-spacing: 0.2px; vertical-align: middle;
+}
 .tagline { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
 
 .content { padding: 8px 16px 16px; display: flex; flex-direction: column; gap: 14px; }
@@ -141,6 +146,12 @@ body {
 .draft-actions { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
 .draft-actions .cta { width: auto; flex: 1; padding: 11px; }
 .draft-actions .chip { padding: 11px 14px; }
+.draft-edit {
+  width: 100%; box-sizing: border-box; resize: vertical;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--line, #2a2e39); border-radius: 10px;
+  padding: 10px 12px; font: inherit; line-height: 1.45; min-height: 160px;
+}
 
 .disclaimer { color: #4a4e59; font-size: 11px; text-align: center; padding: 4px 8px 0; }
 

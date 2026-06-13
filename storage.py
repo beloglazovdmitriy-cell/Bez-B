@@ -167,6 +167,17 @@ def set_draft_status(draft_id: int, status: str):
             conn.close()
 
 
+def update_draft(draft_id: int, text: str):
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_drafts(conn)
+            conn.execute("UPDATE drafts SET text=? WHERE id=?", (text, draft_id))
+            conn.commit()
+        finally:
+            conn.close()
+
+
 def delete_draft(draft_id: int):
     with _lock:
         conn = _connect()

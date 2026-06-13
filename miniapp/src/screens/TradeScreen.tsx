@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { IconArrowDown, IconArrowUp, IconWallet, IconTrade } from "../components/Icons";
+import { IconArrowDown, IconArrowUp, IconWallet, IconTrade, Brand } from "../components/Icons";
 import TradeSheet, { type Action } from "../components/TradeSheet";
 import { mockUser } from "../mock";
 import type { Summary, Pf } from "../data";
@@ -29,7 +29,7 @@ export default function TradeScreen({
     return (
       <div className="content">
         <div className="card stub-card">
-          Портфель «Без Б» ведёт только автор.<br />
+          Портфель <Brand size={14} /> ведёт только автор.<br />
           Переключись на «Мой портфель» вверху — и веди свой: покупай, продавай,
           контролируй рост.
         </div>
@@ -40,7 +40,7 @@ export default function TradeScreen({
   return (
     <div className="content">
       <div className="section-title" style={{ marginTop: 4 }}>
-        {pf === "me" ? "Мой портфель · операции" : "Без Б · операции (владелец)"}
+        {pf === "me" ? "Мой портфель · операции" : <><Brand size={14} /> · операции (владелец)</>}
       </div>
 
       <div className="actions-grid">

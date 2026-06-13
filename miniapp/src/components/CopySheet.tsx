@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Summary } from "../data";
+import { Brand } from "./Icons";
 
 const PRESETS = [10000, 30000, 50000, 100000];
 const fmt = (n: number) => Math.round(n).toLocaleString("ru-RU").replace(/,/g, " ");
@@ -17,7 +18,7 @@ export default function CopySheet({ summary, onClose }: { summary: Summary; onCl
     <div className="sheet-overlay" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-grip" />
-        <div className="sheet-title">Повтори портфель «Без Б»</div>
+        <div className="sheet-title">Повтори портфель <Brand size={16} /></div>
 
         {total <= 0 ? (
           <div className="muted-note" style={{ padding: "12px 0" }}>

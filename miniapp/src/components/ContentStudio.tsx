@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   apiContentGenerate, apiContentDrafts, apiContentPublish, apiContentDelete,
-  type Draft,
+  apiContentUpdate, type Draft,
 } from "../data";
 import { IconAI, IconChannel } from "./Icons";
 
@@ -24,6 +24,8 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState("");        // kind генерации в работе
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
+  const [editId, setEditId] = useState<number | null>(null);  // id черновика в правке
+  const [editText, setEditText] = useState("");
 
   function refresh() {
     apiContentDrafts().then(setDrafts).catch((e) => setNote((e as Error).message))
@@ -44,6 +46,15 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
   }
   async function remove(id: number) {
     try { await apiContentDelete(id); refresh(); } catch (e) { setNote((e as Error).message); }
+  }
+  function startEdit(d: Draft) { setEditId(d.id); setEditText(d.text); setNote(""); }
+  async function saveEdit() {
+    if (editId == null) return;
+    setNote("Сохраняю…");
+    try {
+      await apiContentUpdate(editId, editText);
+      setEditId(null); setNote("Изменения сохранены ✓"); refresh();
+    } catch (e) { setNote((e as Error).message); }
   }
 
   return (
@@ -74,13 +85,27 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
             {drafts.map((d) => (
               <div className="card draft" key={d.id}>
                 <div className="draft-kind">{LABEL[d.kind] || d.kind}</div>
-                <div className="ai-text draft-text">{d.text}</div>
-                <div className="draft-actions">
-                  <button className="cta" onClick={() => publish(d.id)}>
-                    <IconChannel size={16} /> Опубликовать
-                  </button>
-                  <button className="chip" onClick={() => remove(d.id)}>Удалить</button>
-                </div>
+                {editId === d.id ? (
+                  <>
+                    <textarea className="draft-edit" value={editText}
+                      onChange={(e) => setEditText(e.target.value)} rows={10} />
+                    <div className="draft-actions">
+                      <button className="cta" onClick={saveEdit}>Сохранить</button>
+                      <button className="chip" onClick={() => setEditId(null)}>Отмена</button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="ai-text draft-text">{d.text}</div>
+                    <div className="draft-actions">
+                      <button className="cta" onClick={() => publish(d.id)}>
+                        <IconChannel size={16} /> Опубликовать
+                      </button>
+                      <button className="chip" onClick={() => startEdit(d)}>Править</button>
+                      <button className="chip" onClick={() => remove(d.id)}>Удалить</button>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>

@@ -139,6 +139,14 @@ export const IconLogo = ({ size = 24, className }: P) => (
   </svg>
 );
 
+// Единый бренд-знак как в шапке: «Bez» + монета-логотип в роли «Б».
+// Используется везде вместо текстовых «Без Б» / «@BezBlogfin».
+export const Brand = ({ size = 15, className }: { size?: number; className?: string }) => (
+  <span className={"brand-inline" + (className ? " " + className : "")}>
+    Bez <IconLogo size={size} className="brand-btc" />
+  </span>
+);
+
 export const IconScenario = ({ size = 24, className }: P) => (
   <svg {...base(size, className)}>
     <circle cx="5" cy="12" r="2" />

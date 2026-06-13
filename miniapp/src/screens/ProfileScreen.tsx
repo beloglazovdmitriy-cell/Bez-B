@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  IconCrown, IconLock, IconCheck, IconShare, IconChannel, IconChevron, IconAI,
+  IconCrown, IconLock, IconCheck, IconShare, IconChannel, IconChevron, IconAI, Brand,
 } from "../components/Icons";
 import ContentStudio from "../components/ContentStudio";
 import { mockUser } from "../mock";
@@ -51,7 +51,7 @@ export default function ProfileScreen({ user }: { user: User }) {
       {/* подписка */}
       <div className="card premium">
         <div className="premium-head">
-          <span className="premium-title"><IconCrown size={20} /> Премиум «Без Б»</span>
+          <span className="premium-title"><IconCrown size={20} /> Премиум <Brand size={16} /></span>
           <span className="premium-price">990 ₽/мес</span>
         </div>
         <div className="premium-list">
@@ -87,7 +87,7 @@ export default function ProfileScreen({ user }: { user: User }) {
         </button>
         <button className="list-row" onClick={openChannel}>
           <span className="lr-ic accent"><IconChannel size={18} /></span>
-          <span>Подписаться на канал @BezBlogfin</span>
+          <span>Подписаться на канал <Brand size={14} /></span>
           <IconChevron size={18} className="lr-chev" />
         </button>
       </div>

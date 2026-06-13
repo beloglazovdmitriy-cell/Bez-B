@@ -510,6 +510,16 @@ def content_publish(id: int, x_init_data: str | None = Header(default=None)):
     return {"ok": True}
 
 
+@app.post("/api/content/update")
+def content_update(id: int, req: PublishReq, x_init_data: str | None = Header(default=None)):
+    """Сохранить отредактированный текст черновика (только владелец)."""
+    _require_owner(x_init_data)
+    if not storage.get_draft(id):
+        raise HTTPException(status_code=404, detail="Черновик не найден")
+    storage.update_draft(id, req.text)
+    return {"ok": True}
+
+
 @app.post("/api/content/delete")
 def content_delete(id: int, x_init_data: str | None = Header(default=None)):
     _require_owner(x_init_data)

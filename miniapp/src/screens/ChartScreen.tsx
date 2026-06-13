@@ -1,4 +1,5 @@
 import type { HistoryPoint, BenchRow } from "../data";
+import { Brand } from "../components/Icons";
 
 const W = 320, H = 150, PAD = 6;
 
@@ -44,7 +45,7 @@ export default function ChartScreen({
       {bench.length > 0 ? (
         <div className="card">
           <div className="section-title" style={{ marginTop: 0, marginBottom: 10 }}>
-            Без Б против рынка · доходность ₽
+            <Brand size={14} /> против рынка · доходность ₽
           </div>
           <div className="bars">
             {bench.map((b) => (
@@ -107,7 +108,7 @@ export default function ChartScreen({
       {/* индекс Без Б */}
       <div className="card">
         <div className="chart-head">
-          <span className="section-title" style={{ margin: 0 }}>Индекс Без Б</span>
+          <span className="section-title" style={{ margin: 0 }}>Индекс <Brand size={14} /></span>
           {last && <span className="pos" style={{ fontWeight: 700 }}>{last.index.toFixed(1)} пт</span>}
         </div>
         {hasHistory ? (
