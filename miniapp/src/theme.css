@@ -229,6 +229,14 @@ body {
 .switch.on { background: rgba(38,166,154,.25); border-color: var(--accent); }
 .switch.on .knob { transform: translateX(18px); background: var(--accent); }
 
+/* ── Студия: опции публикации ── */
+.pub-opts { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 4px; }
+.pub-opt { display: inline-flex; align-items: center; gap: 6px; font-size: 13px;
+  color: var(--muted); background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 999px; padding: 6px 11px; cursor: pointer; }
+.pub-opt input { width: 15px; height: 15px; accent-color: var(--accent); }
+.pub-opt.file { color: var(--accent); }
+
 /* ── Песочница: сравнение DCA vs lump ── */
 .sand-compare { padding: 12px 16px; }
 .sc-row { display: flex; justify-content: space-between; align-items: center;

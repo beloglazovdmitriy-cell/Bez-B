@@ -18,7 +18,7 @@ import os
 from datetime import datetime
 from urllib.parse import parse_qsl
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -436,6 +436,8 @@ def trade_comment(id: int, p: str = "bezb", x_init_data: str | None = Header(def
 
 class PublishReq(BaseModel):
     text: str
+    cta: bool = True              # прикреплять ли кнопку-ссылку на бота
+    chartKind: str | None = None  # если задано — приложить график рубрики
 
 
 class TopicReq(BaseModel):
@@ -446,18 +448,34 @@ def _cta_kb():
     return {"inline_keyboard": [[{"text": "📈 Открыть Без Б", "url": config.BOT_URL}]]}
 
 
-def _channel_post(text: str, chart: bytes | None = None):
-    """Опубликовать в канал: опц. график (фото) + текст с CTA-кнопкой."""
+def _channel_post(text: str, chart: bytes | None = None, cta: bool = True):
+    """Опубликовать в канал. chart — фото (график/картинка); cta — кнопка на бота.
+
+    Если есть фото и текст влезает в подпись (<=1024) — публикуем ОДНИМ постом
+    (фото с подписью), иначе фото отдельно + текст. Кнопка-ссылка на бота
+    добавляется по флагу cta.
+    """
     import requests
     base = f"https://api.telegram.org/bot{config.BOT_TOKEN}"
+    kb = _cta_kb() if cta else None
+    if chart and len(text) <= 1024:
+        r = requests.post(f"{base}/sendPhoto",
+                          data={"chat_id": config.CHANNEL_ID, "caption": text,
+                                **({"reply_markup": json.dumps(kb)} if kb else {})},
+                          files={"photo": ("bezb.png", chart, "image/png")}, timeout=30)
+        if not r.json().get("ok"):
+            raise RuntimeError(r.text)
+        return
     if chart:
         try:
             requests.post(f"{base}/sendPhoto", data={"chat_id": config.CHANNEL_ID},
-                          files={"photo": ("bezb.png", chart, "image/png")}, timeout=25)
+                          files={"photo": ("bezb.png", chart, "image/png")}, timeout=30)
         except Exception:
             pass  # без графика не критично
-    r = requests.post(f"{base}/sendMessage", json={
-        "chat_id": config.CHANNEL_ID, "text": text, "reply_markup": _cta_kb()}, timeout=20)
+    payload = {"chat_id": config.CHANNEL_ID, "text": text}
+    if kb:
+        payload["reply_markup"] = kb
+    r = requests.post(f"{base}/sendMessage", json=payload, timeout=20)
     if not r.json().get("ok"):
         raise RuntimeError(r.text)
 
@@ -492,8 +510,9 @@ def publish(req: PublishReq, x_init_data: str | None = Header(default=None)):
     _require_owner(x_init_data)
     if not config.CHANNEL_ID:
         raise HTTPException(status_code=400, detail="Канал не подключён (задай CHANNEL_ID)")
+    chart = _chart_for(req.chartKind) if req.chartKind else None
     try:
-        _channel_post(req.text)
+        _channel_post(req.text, chart, cta=req.cta)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Не удалось опубликовать: {e}")
     return {"ok": True}
@@ -756,15 +775,24 @@ def content_drafts(x_init_data: str | None = Header(default=None)):
 
 
 @app.post("/api/content/publish")
-def content_publish(id: int, x_init_data: str | None = Header(default=None)):
+async def content_publish(id: int, cta: bool = True, chart: bool = True,
+                          image: UploadFile | None = File(default=None),
+                          x_init_data: str | None = Header(default=None)):
+    """Опубликовать черновик. cta — кнопка на бота; chart — приложить график
+    рубрики; image — своя картинка (имеет приоритет над графиком)."""
     _require_owner(x_init_data)
     if not config.CHANNEL_ID:
         raise HTTPException(status_code=400, detail="Канал не подключён")
     d = storage.get_draft(id)
     if not d:
         raise HTTPException(status_code=404, detail="Черновик не найден")
+    photo = None
+    if image is not None:
+        photo = await image.read()
+    elif chart:
+        photo = _chart_for(d["kind"]) or _chart_for("portfolio")
     try:
-        _channel_post(d["text"], _chart_for(d["kind"]))
+        _channel_post(d["text"], photo, cta=cta)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Не удалось опубликовать: {e}")
     storage.set_draft_status(id, "published")

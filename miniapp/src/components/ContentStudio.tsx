@@ -27,6 +27,9 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
   const [editId, setEditId] = useState<number | null>(null);  // id черновика в правке
   const [editText, setEditText] = useState("");
   const [topic, setTopic] = useState("");                     // своя тема/задача
+  const [noChart, setNoChart] = useState<Record<number, boolean>>({});
+  const [noCta, setNoCta] = useState<Record<number, boolean>>({});
+  const [imgs, setImgs] = useState<Record<number, File | null>>({});
 
   function refresh() {
     apiContentDrafts().then(setDrafts).catch((e) => setNote((e as Error).message))
@@ -50,8 +53,12 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
   }
   async function publish(id: number) {
     setNote("Публикую…");
-    try { await apiContentPublish(id); setNote("Опубликовано в канал ✓"); refresh(); }
-    catch (e) { setNote((e as Error).message); }
+    try {
+      await apiContentPublish(id, {
+        cta: !noCta[id], chart: !noChart[id], image: imgs[id] || null,
+      });
+      setNote("Опубликовано в канал ✓"); refresh();
+    } catch (e) { setNote((e as Error).message); }
   }
   async function remove(id: number) {
     try { await apiContentDelete(id); refresh(); } catch (e) { setNote((e as Error).message); }
@@ -115,6 +122,23 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
                 ) : (
                   <>
                     <div className="ai-text draft-text">{d.text}</div>
+                    <div className="pub-opts">
+                      <label className="pub-opt">
+                        <input type="checkbox" checked={!noChart[d.id]}
+                          onChange={(e) => setNoChart({ ...noChart, [d.id]: !e.target.checked })} />
+                        📊 График
+                      </label>
+                      <label className="pub-opt">
+                        <input type="checkbox" checked={!noCta[d.id]}
+                          onChange={(e) => setNoCta({ ...noCta, [d.id]: !e.target.checked })} />
+                        🔗 Кнопка бота
+                      </label>
+                      <label className="pub-opt file">
+                        🖼 {imgs[d.id] ? "Картинка ✓" : "Картинка"}
+                        <input type="file" accept="image/*" hidden
+                          onChange={(e) => setImgs({ ...imgs, [d.id]: e.target.files?.[0] || null })} />
+                      </label>
+                    </div>
                     <div className="draft-actions">
                       <button className="cta" onClick={() => publish(d.id)}>
                         <IconChannel size={16} /> Опубликовать

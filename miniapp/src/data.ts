@@ -199,7 +199,25 @@ export const apiHome = () => reqJSON<Home>("/api/home");
 export const apiContentGenerate = (kind: string) =>
   reqJSON<Draft>(`/api/content/generate?kind=${kind}`, "POST");
 export const apiContentDrafts = () => reqJSON<Draft[]>("/api/content/drafts");
-export const apiContentPublish = (id: number) => reqJSON<{ ok: boolean }>(`/api/content/publish?id=${id}`, "POST");
+export async function apiContentPublish(
+  id: number, opts: { cta?: boolean; chart?: boolean; image?: File | null } = {},
+): Promise<{ ok: boolean }> {
+  const cta = opts.cta !== false;
+  const chart = opts.chart !== false;
+  const url = `${API_BASE}/api/content/publish?id=${id}&cta=${cta}&chart=${chart}`;
+  const init: RequestInit = { method: "POST", headers: { "X-Init-Data": initData() } };
+  if (opts.image) {
+    const fd = new FormData();
+    fd.append("image", opts.image);
+    init.body = fd;
+  }
+  const res = await fetch(url, init);
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error((e as any).detail || "Ошибка публикации");
+  }
+  return res.json();
+}
 export const apiContentDelete = (id: number) => reqJSON<{ ok: boolean }>(`/api/content/delete?id=${id}`, "POST");
 export const apiContentUpdate = (id: number, text: string) => postJSON(`/api/content/update?id=${id}`, { text });
 export const apiContentCustom = (topic: string) => postJSON("/api/content/custom", { topic });
