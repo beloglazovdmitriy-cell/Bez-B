@@ -95,10 +95,12 @@ def _resolve_user(init_data: str | None) -> dict:
         user = _verify_init_data(init_data)
         if user:
             uid = user.get("id")
+            uname = (user.get("username") or "").lower()
+            is_admin = uid == config.ADMIN_ID or storage.is_admin_username(uname)
             return {
                 "id": uid,
                 "name": user.get("first_name", "Гость"),
-                "isAdmin": uid == config.ADMIN_ID,
+                "isAdmin": is_admin,
                 "isPremium": False,  # позже — из подписки
             }
     return {"id": config.ADMIN_ID if _DEV_ADMIN else None,
@@ -634,6 +636,22 @@ def home():
     except Exception:
         pass
     return {"mood": mood, "digest": digest, "bezbToday": today_trade}
+
+
+class AdminGrantReq(BaseModel):
+    username: str
+    revoke: bool = False
+
+
+@app.post("/api/admin/grant")
+def admin_grant(req: AdminGrantReq, x_init_data: str | None = Header(default=None)):
+    """Выдать/снять полный доступ пользователю по @username (только владелец)."""
+    _require_owner(x_init_data)
+    if req.revoke:
+        storage.remove_admin_username(req.username)
+    else:
+        storage.add_admin_username(req.username)
+    return {"ok": True, "admins": storage.list_admin_usernames()}
 
 
 @app.get("/api/sandbox/dca")

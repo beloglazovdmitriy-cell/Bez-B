@@ -200,6 +200,68 @@ def reactions_for(post_ids: list, uid: str) -> dict:
     return out
 
 
+# ──────────────── доп. администраторы (по @username) ────────────────
+# Полный доступ в приложении (как у владельца): редактировать публичный
+# портфель, контент-студия, публикация. По нику, т.к. id узнаём только когда
+# юзер откроет Mini App. НЕ даёт доступа к коду/серверу.
+
+def _ensure_admins(conn):
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS extra_admins (username TEXT PRIMARY KEY, ts INTEGER)")
+
+
+def add_admin_username(username) -> None:
+    u = (username or "").lstrip("@").lower()
+    if not u:
+        return
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_admins(conn)
+            conn.execute("INSERT OR IGNORE INTO extra_admins (username, ts) VALUES (?, ?)",
+                         (u, int(time.time())))
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def remove_admin_username(username) -> None:
+    u = (username or "").lstrip("@").lower()
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_admins(conn)
+            conn.execute("DELETE FROM extra_admins WHERE username=?", (u,))
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def is_admin_username(username) -> bool:
+    u = (username or "").lstrip("@").lower()
+    if not u:
+        return False
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_admins(conn)
+            return bool(conn.execute(
+                "SELECT 1 FROM extra_admins WHERE username=?", (u,)).fetchone())
+        finally:
+            conn.close()
+
+
+def list_admin_usernames() -> list:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_admins(conn)
+            return [r[0] for r in conn.execute(
+                "SELECT username FROM extra_admins").fetchall()]
+        finally:
+            conn.close()
+
+
 # ──────────────── подписчики на пуши о сделках Без Б ────────────────
 # Глобальная таблица (не привязана к портфелю): кто получает мгновенные
 # уведомления о сделках публичного портфеля. Пока включение свободное;
