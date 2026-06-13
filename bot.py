@@ -7,6 +7,7 @@
   4) «💸 Вывести» — выводишь USDT из портфеля.
 Снизу всегда есть постоянная кнопка «☰ Меню».
 """
+import asyncio
 import logging
 import os
 from logging.handlers import RotatingFileHandler
@@ -26,6 +27,8 @@ import config
 import portfolio
 import charts
 import benchmark
+import ai
+import storage
 from quotes import get_price_usd, get_usd_rub, normalize_ticker
 
 def _setup_logging():
@@ -1009,6 +1012,67 @@ async def job_weekly(context: ContextTypes.DEFAULT_TYPE):
         log.exception("weekly publish failed")
 
 
+# ───────────── Планировщик контента (черновики на ревью) ─────────────
+# Бот по расписанию рубрик сам готовит AI-черновик и кладёт в очередь
+# «Контент-студии», затем шлёт владельцу пинг «готово». Авто-публикации НЕТ —
+# владелец проверяет и публикует вручную (draft-on-review).
+# Час утренних/дневных джоб настраивается через env (время сервера).
+_MORNING_HOUR = int(os.getenv("CONTENT_MORNING_HOUR", "9"))    # будни — дайджест
+_MIDDAY_HOUR = int(os.getenv("CONTENT_MIDDAY_HOUR", "10"))     # рубрика дня
+_SAT_HOUR = int(os.getenv("CONTENT_SAT_HOUR", "11"))          # суббота — манифест
+
+_KIND_LABEL = {
+    "digest": "📰 Дайджест", "scenarios": "🔮 Сценарии", "edu": "📚 Ликбез",
+    "manifest": "🧭 Манифест", "bullshit": "🚩 Детектор буллшита",
+}
+
+
+async def _make_draft(context: ContextTypes.DEFAULT_TYPE, kind: str):
+    """Сгенерировать черновик рубрики (в потоке, чтобы не блокировать loop) и
+    положить в очередь Без Б. Пингануть владельца."""
+    if not ai.available():
+        log.warning("планировщик: AI недоступен, пропускаю %s", kind)
+        return
+    try:
+        storage.use_uid("bezb")
+        if kind == "digest":
+            text = await asyncio.to_thread(ai.digest_bezb)
+        elif kind == "scenarios":
+            text = await asyncio.to_thread(ai.scenarios_bezb)
+        else:
+            text = await asyncio.to_thread(ai.content_post, kind)
+        storage.use_uid("bezb")
+        d = storage.add_draft(kind, text)
+        log.info("планировщик: черновик %s готов (id=%s)", kind, d)
+        if config.ADMIN_ID:
+            await context.bot.send_message(
+                config.ADMIN_ID,
+                f"🗂 Готов черновик «{_KIND_LABEL.get(kind, kind)}».\n"
+                "Открой приложение → Профиль → Контент-студия, проверь и опубликуй.")
+    except Exception:
+        log.exception("планировщик: не удалось подготовить черновик %s", kind)
+
+
+async def job_content_morning(context: ContextTypes.DEFAULT_TYPE):
+    """Будни (Пн–Пт): дайджест «Рынок за 60 секунд»."""
+    if datetime.now().weekday() <= 4:
+        await _make_draft(context, "digest")
+
+
+async def job_content_midday(context: ContextTypes.DEFAULT_TYPE):
+    """Рубрика дня: Вт ликбез, Чт детектор буллшита, Пт сценарии."""
+    kind = {1: "edu", 3: "bullshit", 4: "scenarios"}.get(datetime.now().weekday())
+    if kind:
+        await _make_draft(context, kind)
+
+
+async def job_content_saturday(context: ContextTypes.DEFAULT_TYPE):
+    """Суббота через неделю (чётная ISO-неделя): манифест."""
+    now = datetime.now()
+    if now.weekday() == 5 and now.isocalendar().week % 2 == 0:
+        await _make_draft(context, "manifest")
+
+
 def _seconds_until_next_sunday_18():
     now = datetime.now()
     target = now.replace(hour=18, minute=0, second=0, microsecond=0)
@@ -1039,12 +1103,19 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
 
     if app.job_queue:
-        app.job_queue.run_repeating(
+        jq = app.job_queue
+        jq.run_repeating(
             job_weekly, interval=timedelta(days=7),
             first=_seconds_until_next_sunday_18())
-        log.info("Недельный снимок: каждое воскресенье 18:00")
+        # контент-конвейер: авто-черновики на ревью по расписанию рубрик
+        jq.run_daily(job_content_morning, time=dtime(hour=_MORNING_HOUR))
+        jq.run_daily(job_content_midday, time=dtime(hour=_MIDDAY_HOUR))
+        jq.run_daily(job_content_saturday, time=dtime(hour=_SAT_HOUR))
+        log.info("Снимок: Вс 18:00. Черновики: будни %02d:00 дайджест, "
+                 "%02d:00 рубрика дня, Сб %02d:00 манифест.",
+                 _MORNING_HOUR, _MIDDAY_HOUR, _SAT_HOUR)
     else:
-        log.warning("JobQueue недоступна — автоснимок отключён.")
+        log.warning("JobQueue недоступна — автоснимок и черновики отключены.")
 
     log.info("Бот запущен. Ctrl+C для остановки.")
     # bootstrap_retries=-1 — бесконечно повторять старт при сетевых сбоях (не падать)

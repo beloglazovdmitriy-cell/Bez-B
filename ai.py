@@ -175,6 +175,40 @@ _CONTENT_TASKS = {
 }
 
 
+def _bezb_ai_data():
+    """Данные публичного портфеля Без Б для AI (uid bezb). (data, ctx)."""
+    import storage
+    import portfolio
+    storage.use_uid("bezb")
+    s = portfolio.summary()
+    pv = s["positions_value_usdt"] or 1
+    data = {
+        "label": "публичный портфель «Без Б»",
+        "totalUsd": s["total_value_usdt"], "totalRub": s["value_rub"],
+        "profitRubPct": s["profit_rub_pct"], "profitUsdPct": s["profit_usdt_pct"],
+        "index": s["index"], "cashUsdt": s["usdt_cash"],
+        "positions": [{
+            "ticker": p.ticker, "weightPct": p.value_usd / pv * 100,
+            "profitPct": p.profit_pct, "avgPrice": round(p.avg_price_usdt, 4),
+            "priceNow": round(p.price_now, 4),
+        } for p in s["positions"]],
+    }
+    ctx = (f"Баланс {s['value_rub']:,.0f}₽, индекс Без Б {s['index']:.0f} пт. Позиции: "
+           + (", ".join(f"{p.ticker} {p.value_usd / pv * 100:.0f}%" for p in s["positions"])
+              or "только кэш")).replace(",", " ")
+    return data, ctx
+
+
+def digest_bezb() -> str:
+    _, ctx = _bezb_ai_data()
+    return market_digest(ctx)
+
+
+def scenarios_bezb() -> str:
+    data, _ = _bezb_ai_data()
+    return scenarios(data)
+
+
 def content_post(kind: str) -> str:
     """Сгенерировать пост рубрики (edu/manifest/bullshit) — без данных портфеля."""
     task = _CONTENT_TASKS.get(kind)
