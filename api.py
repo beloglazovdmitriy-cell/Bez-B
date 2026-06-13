@@ -130,7 +130,24 @@ def _ctx(p: str, init_data: str | None, write: bool = False) -> str:
 
 @app.get("/api/me")
 def me(x_init_data: str | None = Header(default=None)):
-    return _resolve_user(x_init_data)
+    u = _resolve_user(x_init_data)
+    u["isSubscribed"] = storage.is_subscriber(u.get("id"))
+    return u
+
+
+def _notify_bezb_trade(p: str, txid):
+    """Фоном разослать пуш подписчикам о сделке публичного портфеля Без Б."""
+    if p != "bezb":
+        return
+    try:
+        tx = portfolio.get_operation(txid)  # uid ещё = bezb (контекст запроса)
+    except Exception:
+        tx = None
+    if not tx:
+        return
+    import threading
+    import notify
+    threading.Thread(target=notify.notify_trade, args=(tx,), daemon=True).start()
 
 
 def _summary_payload() -> dict:
@@ -214,6 +231,7 @@ def api_buy(req: BuyReq, p: str = "bezb", x_init_data: str | None = Header(defau
             portfolio.set_reason(tx["id"], req.reason)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+    _notify_bezb_trade(p, tx["id"])
     return _ok()
 
 
@@ -226,6 +244,7 @@ def api_sell(req: SellReq, p: str = "bezb", x_init_data: str | None = Header(def
             portfolio.set_reason(tx["id"], req.reason)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+    _notify_bezb_trade(p, tx["id"])
     return _ok()
 
 
@@ -254,6 +273,7 @@ def api_deposit_asset(req: AssetDepositReq, p: str = "bezb", x_init_data: str | 
             portfolio.set_reason(tx["id"], req.reason)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+    _notify_bezb_trade(p, tx["id"])
     return _ok()
 
 
@@ -596,6 +616,25 @@ def home():
     except Exception:
         pass
     return {"mood": mood, "digest": digest, "bezbToday": today_trade}
+
+
+@app.post("/api/subscribe")
+def subscribe(x_init_data: str | None = Header(default=None)):
+    """Подписаться на мгновенные пуши о сделках Без Б (нужна авторизация Telegram)."""
+    uid = _resolve_user(x_init_data).get("id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Откройте приложение из Telegram")
+    storage.add_subscriber(uid)
+    return {"ok": True, "isSubscribed": True}
+
+
+@app.post("/api/unsubscribe")
+def unsubscribe(x_init_data: str | None = Header(default=None)):
+    uid = _resolve_user(x_init_data).get("id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Откройте приложение из Telegram")
+    storage.remove_subscriber(uid)
+    return {"ok": True, "isSubscribed": False}
 
 
 @app.get("/api/content/drafts")

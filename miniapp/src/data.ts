@@ -18,7 +18,7 @@ const ADMIN_ID = Number(import.meta.env.VITE_ADMIN_ID ?? 503720103);
 
 function fallbackUser() {
   const u = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
-  if (u) return { name: u.first_name || "Гость", isAdmin: u.id === ADMIN_ID, isPremium: false };
+  if (u) return { name: u.first_name || "Гость", isAdmin: u.id === ADMIN_ID, isPremium: false, isSubscribed: false };
   return mockUser;
 }
 
@@ -78,6 +78,10 @@ export const apiDeposit = (pf: Pf, b: { rub: number; rate: number }) =>
   postJSON(`/api/deposit?p=${pf}`, b);
 export const apiWithdraw = (pf: Pf, b: { amountUsdt: number }) =>
   postJSON(`/api/withdraw?p=${pf}`, b);
+
+// ── подписка на мгновенные пуши о сделках Без Б ──
+export const apiSubscribe = () => reqJSON<{ ok: boolean; isSubscribed: boolean }>("/api/subscribe", "POST");
+export const apiUnsubscribe = () => reqJSON<{ ok: boolean; isSubscribed: boolean }>("/api/unsubscribe", "POST");
 export const apiDepositAsset = (pf: Pf, b: { ticker: string; amountUsdt: number; price?: number; reason?: string }) =>
   postJSON(`/api/deposit_asset?p=${pf}`, b);
 

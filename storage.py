@@ -200,6 +200,64 @@ def reactions_for(post_ids: list, uid: str) -> dict:
     return out
 
 
+# ──────────────── подписчики на пуши о сделках Без Б ────────────────
+# Глобальная таблица (не привязана к портфелю): кто получает мгновенные
+# уведомления о сделках публичного портфеля. Пока включение свободное;
+# после подключения оплаты — гейт по премиум-подписке.
+
+def _ensure_subscribers(conn):
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS subscribers ("
+        "uid INTEGER PRIMARY KEY, ts INTEGER NOT NULL)")
+
+
+def add_subscriber(uid: int) -> None:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_subscribers(conn)
+            conn.execute("INSERT OR IGNORE INTO subscribers (uid, ts) VALUES (?, ?)",
+                         (int(uid), int(time.time())))
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def remove_subscriber(uid: int) -> None:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_subscribers(conn)
+            conn.execute("DELETE FROM subscribers WHERE uid=?", (int(uid),))
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def is_subscriber(uid) -> bool:
+    if not uid:
+        return False
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_subscribers(conn)
+            row = conn.execute("SELECT 1 FROM subscribers WHERE uid=?", (int(uid),)).fetchone()
+            return bool(row)
+        finally:
+            conn.close()
+
+
+def list_subscribers() -> list:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_subscribers(conn)
+            rows = conn.execute("SELECT uid FROM subscribers").fetchall()
+            return [r[0] for r in rows]
+        finally:
+            conn.close()
+
+
 def list_published(limit: int = 50) -> list:
     """Опубликованные посты — для ленты в Mini App (публично, без гейта)."""
     with _lock:

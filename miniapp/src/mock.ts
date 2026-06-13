@@ -87,4 +87,4 @@ export const mockJournal: JournalEntry[] = [
 // Фолбэк-пользователь, когда API недоступен (напр. на GitHub Pages без бэкенда).
 // isAdmin=false → публичная версия не показывает раздел «Сделки». Реальный
 // статус приходит из /api/me (по Telegram initData), в dev — владелец.
-export const mockUser = { name: "Гость", isAdmin: false, isPremium: false };
+export const mockUser = { name: "Гость", isAdmin: false, isPremium: false, isSubscribed: false };

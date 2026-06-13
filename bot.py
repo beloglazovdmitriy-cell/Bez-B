@@ -286,11 +286,20 @@ async def _finalize_trade(q, context, txid, is_admin):
 
 
 async def _post_trade(context, txid) -> bool:
-    """Опубликовать сделку в канал. Возвращает True, если отправлено."""
-    if not config.CHANNEL_ID:
-        return False
+    """Опубликовать сделку в канал. Возвращает True, если отправлено.
+
+    Перед каналом — мгновенный пуш подписчикам (премиум-скорость, раньше канала).
+    """
     tx = portfolio.get_operation(txid)
     if not tx:
+        return False
+    try:
+        import asyncio
+        import notify
+        asyncio.create_task(asyncio.to_thread(notify.notify_trade, dict(tx)))
+    except Exception:
+        log.exception("subscriber push failed")
+    if not config.CHANNEL_ID:
         return False
     s = portfolio.summary()
     ttype = tx.get("type") or tx.get("side")

@@ -3,6 +3,7 @@ import {
   IconCrown, IconLock, IconCheck, IconShare, IconChannel, IconChevron, IconAI, Brand,
 } from "../components/Icons";
 import ContentStudio from "../components/ContentStudio";
+import { apiSubscribe, apiUnsubscribe } from "../data";
 import { mockUser } from "../mock";
 
 type User = typeof mockUser;
@@ -35,6 +36,24 @@ const PREMIUM = [
 export default function ProfileScreen({ user }: { user: User }) {
   const u = user;
   const [studio, setStudio] = useState(false);
+  const [subscribed, setSubscribed] = useState(!!(u as any).isSubscribed);
+  const [subBusy, setSubBusy] = useState(false);
+
+  async function toggleSub() {
+    if (subBusy) return;
+    const next = !subscribed;
+    setSubBusy(true);
+    setSubscribed(next);            // оптимистично
+    try {
+      const r = next ? await apiSubscribe() : await apiUnsubscribe();
+      setSubscribed(r.isSubscribed);
+    } catch {
+      setSubscribed(!next);         // откат при ошибке
+    } finally {
+      setSubBusy(false);
+    }
+  }
+
   return (
     <div className="content">
       {/* профиль */}
@@ -46,6 +65,17 @@ export default function ProfileScreen({ user }: { user: User }) {
             {u.isAdmin ? "Владелец портфеля" : u.isPremium ? "Премиум-подписчик" : "Бесплатный доступ"}
           </div>
         </div>
+      </div>
+
+      {/* уведомления о сделках Без Б */}
+      <div className="card sub-card" onClick={toggleSub}>
+        <div className="sub-text">
+          <div className="sub-title">🔔 Сделки Без Б — мгновенно</div>
+          <div className="sub-sub">Пуш при каждой покупке/продаже, раньше канала</div>
+        </div>
+        <span className={"switch" + (subscribed ? " on" : "")} aria-hidden>
+          <span className="knob" />
+        </span>
       </div>
 
       {/* подписка */}
