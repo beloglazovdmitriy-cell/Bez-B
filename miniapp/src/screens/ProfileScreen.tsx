@@ -7,6 +7,24 @@ import { mockUser } from "../mock";
 
 type User = typeof mockUser;
 
+const CHANNEL = "BezBlogfin";   // @BezBlogfin
+const BOT = "BezzBot_bot";      // t.me/BezzBot_bot
+
+function tgOpen(url: string) {
+  const tg = (window as any).Telegram?.WebApp;
+  if (tg?.openTelegramLink) tg.openTelegramLink(url);
+  else window.open(url, "_blank");
+}
+function openChannel() {
+  tgOpen(`https://t.me/${CHANNEL}`);
+}
+function shareResult() {
+  const text =
+    "Слежу за публичным портфелём «Без Б» — инвестиции без буллшита, всё открыто 📈";
+  const url = `https://t.me/${BOT}`;
+  tgOpen(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`);
+}
+
 const PREMIUM = [
   "Мгновенные пуш-уведомления о каждой сделке",
   "Машина времени — портфель на любую дату",
@@ -62,12 +80,12 @@ export default function ProfileScreen({ user }: { user: User }) {
 
       {/* действия */}
       <div className="list">
-        <button className="list-row">
+        <button className="list-row" onClick={shareResult}>
           <span className="lr-ic accent"><IconShare size={18} /></span>
           <span>Поделиться результатом</span>
           <IconChevron size={18} className="lr-chev" />
         </button>
-        <button className="list-row">
+        <button className="list-row" onClick={openChannel}>
           <span className="lr-ic accent"><IconChannel size={18} /></span>
           <span>Подписаться на канал @BezBlogfin</span>
           <IconChevron size={18} className="lr-chev" />
