@@ -165,6 +165,13 @@ async function reqJSON<T>(path: string, method = "GET"): Promise<T> {
 }
 
 export const apiFeed = () => reqJSON<Draft[]>("/api/feed");
+
+// ── Главная (домашняя сводка) ──
+export interface HomeMood { value: number; label: string; prev: number; trend: "up" | "down" | "flat"; }
+export interface HomeDigest { id: number; ts: number; text: string; }
+export interface HomeTrade { side: "buy" | "sell"; ticker: string; amountUsd: number; date: string; isToday: boolean; reason: string; }
+export interface Home { mood: HomeMood | null; digest: HomeDigest | null; bezbToday: HomeTrade | null; }
+export const apiHome = () => reqJSON<Home>("/api/home");
 export const apiContentGenerate = (kind: string) =>
   reqJSON<Draft>(`/api/content/generate?kind=${kind}`, "POST");
 export const apiContentDrafts = () => reqJSON<Draft[]>("/api/content/drafts");

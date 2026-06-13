@@ -548,6 +548,56 @@ def feed_react(req: ReactReq, x_init_data: str | None = Header(default=None)):
     return r
 
 
+@app.get("/api/home")
+def home():
+    """Сводка «Главная»: гейдж страха/жадности + последний дайджест +
+    что сделал Без Б сегодня. Публично, для домашнего блока Mini App."""
+    # 1) Индекс страха и жадности
+    mood = None
+    try:
+        import market_mood
+        f = market_mood.snapshot().get("fng")
+        if f:
+            arrow = "up" if f["value"] > f["prev"] else "down" if f["value"] < f["prev"] else "flat"
+            mood = {"value": f["value"], "label": f["label_ru"],
+                    "prev": f["prev"], "trend": arrow}
+    except Exception:
+        pass
+    # 2) «Рынок за 60 сек» — последний опубликованный дайджест из ленты
+    digest = None
+    try:
+        for d in storage.list_published():
+            if d.get("kind") == "digest":
+                digest = {"id": d["id"], "ts": d["ts"], "text": d["text"]}
+                break
+    except Exception:
+        pass
+    # 3) Что сделал Без Б сегодня (последняя сделка публичного портфеля)
+    today_trade = None
+    try:
+        storage.use_uid("bezb")
+        ops = portfolio.get_operations()
+        for t in ops:
+            ttype = t.get("type") or t.get("side")
+            if ttype not in ("buy", "sell", "asset_deposit"):
+                continue
+            price = t.get("price_usdt", t.get("price_usd")) or 0
+            amount = t.get("amount_usdt", t["qty"] * price)
+            d = datetime.fromtimestamp(t["ts"])
+            today_trade = {
+                "side": "sell" if ttype == "sell" else "buy",
+                "ticker": t["ticker"],
+                "amountUsd": round(amount),
+                "date": d.strftime("%d.%m"),
+                "isToday": d.date() == datetime.now().date(),
+                "reason": t.get("reason", ""),
+            }
+            break
+    except Exception:
+        pass
+    return {"mood": mood, "digest": digest, "bezbToday": today_trade}
+
+
 @app.get("/api/content/drafts")
 def content_drafts(x_init_data: str | None = Header(default=None)):
     _require_owner(x_init_data)

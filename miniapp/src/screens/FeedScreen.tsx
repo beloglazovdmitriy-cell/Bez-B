@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiFeed, apiFeedReact, FEED_REACTIONS, type Draft } from "../data";
 import { IconFeed } from "../components/Icons";
+import HomeHeader from "../components/HomeHeader";
 
 const LABEL: Record<string, string> = {
   digest: "📰 Дайджест", crowd: "🌡 Разбор толпы", scenarios: "🔮 Сценарии",
@@ -38,6 +39,7 @@ export default function FeedScreen() {
 
   return (
     <div className="content">
+      <HomeHeader />
       {loading ? (
         <div className="muted-note">Загружаю ленту…</div>
       ) : err ? (
