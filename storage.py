@@ -200,6 +200,50 @@ def reactions_for(post_ids: list, uid: str) -> dict:
     return out
 
 
+# ──────────────── премиум-подписка (оплата) ────────────────
+
+def _ensure_premium(conn):
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS premium (uid TEXT PRIMARY KEY, until_ts INTEGER)")
+
+
+def grant_premium(uid: str, days: int) -> int:
+    """Выдать/продлить премиум. Продление считается от max(сейчас, текущий конец).
+    Возвращает новый until_ts."""
+    now = int(time.time())
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_premium(conn)
+            row = conn.execute("SELECT until_ts FROM premium WHERE uid=?", (uid,)).fetchone()
+            base = max(now, row[0]) if row and row[0] else now
+            until = base + days * 86400
+            conn.execute(
+                "INSERT INTO premium (uid, until_ts) VALUES (?, ?) "
+                "ON CONFLICT(uid) DO UPDATE SET until_ts=excluded.until_ts", (uid, until))
+            conn.commit()
+            return until
+        finally:
+            conn.close()
+
+
+def premium_until(uid: str) -> int:
+    if not uid:
+        return 0
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_premium(conn)
+            row = conn.execute("SELECT until_ts FROM premium WHERE uid=?", (uid,)).fetchone()
+            return row[0] if row and row[0] else 0
+        finally:
+            conn.close()
+
+
+def is_premium(uid: str) -> bool:
+    return premium_until(uid) > int(time.time())
+
+
 # ──────────────── онбординг (5 уроков, по одному в день) ────────────────
 
 _ONBOARDING_TOTAL = 5

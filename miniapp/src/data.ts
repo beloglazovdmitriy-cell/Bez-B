@@ -18,7 +18,7 @@ const ADMIN_ID = Number(import.meta.env.VITE_ADMIN_ID ?? 503720103);
 
 function fallbackUser() {
   const u = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
-  if (u) return { name: u.first_name || "Гость", isAdmin: u.id === ADMIN_ID, isPremium: false, isSubscribed: false };
+  if (u) return { name: u.first_name || "Гость", isAdmin: u.id === ADMIN_ID, isPremium: false, isSubscribed: false, premiumUntil: 0 };
   return mockUser;
 }
 
@@ -92,6 +92,9 @@ export const apiDeposit = (pf: Pf, b: { rub: number; rate: number }) =>
   postJSON(`/api/deposit?p=${pf}`, b);
 export const apiWithdraw = (pf: Pf, b: { amountUsdt: number }) =>
   postJSON(`/api/withdraw?p=${pf}`, b);
+
+// ── оплата премиума (Telegram-инвойс через провайдера) ──
+export const apiPayInvoice = () => postJSONr<{ link: string }>("/api/pay/invoice", {});
 
 // ── подписка на мгновенные пуши о сделках Без Б ──
 export const apiSubscribe = () => reqJSON<{ ok: boolean; isSubscribed: boolean }>("/api/subscribe", "POST");

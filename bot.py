@@ -20,7 +20,7 @@ from telegram import (
 from telegram.constants import ParseMode
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler,
-    MessageHandler, ContextTypes, filters,
+    MessageHandler, PreCheckoutQueryHandler, ContextTypes, filters,
 )
 
 import config
@@ -1098,6 +1098,31 @@ def _seconds_until_next_sunday_18():
 
 # ───────────────────────── Запуск ─────────────────────────
 
+async def on_pre_checkout(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Подтвердить заказ перед оплатой (нужно ответить за 10 сек)."""
+    try:
+        await update.pre_checkout_query.answer(ok=True)
+    except Exception:
+        log.exception("pre_checkout failed")
+
+
+async def on_successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Платёж прошёл — выдать премиум по payload «premium:u<id>»."""
+    sp = update.message.successful_payment
+    payload = sp.invoice_payload or ""
+    uid = payload.split(":", 1)[1] if ":" in payload else f"u{update.effective_user.id}"
+    until = storage.grant_premium(uid, config.PREMIUM_DAYS)
+    when = datetime.fromtimestamp(until).strftime("%d.%m.%Y")
+    await update.message.reply_text(
+        f"✅ Премиум активирован до {when}! Спасибо, что поддерживаешь «Без Б».")
+    try:
+        await context.bot.send_message(
+            config.ADMIN_ID,
+            f"💰 Оплата премиума: {update.effective_user.first_name} ({uid}), до {when}.")
+    except Exception:
+        pass
+
+
 def main():
     if not config.BOT_TOKEN:
         raise SystemExit("Не задан BOT_TOKEN. Создай файл .env (см. README).")
@@ -1113,6 +1138,8 @@ def main():
     app.add_handler(CommandHandler(["start", "help", "menu"], cmd_start))
     app.add_handler(CommandHandler(["portfolio", "p"], cmd_portfolio))
     app.add_handler(CallbackQueryHandler(on_callback))
+    app.add_handler(PreCheckoutQueryHandler(on_pre_checkout))
+    app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, on_successful_payment))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
 
     if app.job_queue:

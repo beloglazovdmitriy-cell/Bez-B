@@ -4,7 +4,7 @@ import {
 } from "../components/Icons";
 import ContentStudio from "../components/ContentStudio";
 import QaSheet from "../components/QaSheet";
-import { apiSubscribe, apiUnsubscribe } from "../data";
+import { apiSubscribe, apiUnsubscribe, apiPayInvoice } from "../data";
 import { mockUser } from "../mock";
 
 type User = typeof mockUser;
@@ -40,6 +40,25 @@ export default function ProfileScreen({ user }: { user: User }) {
   const [qa, setQa] = useState(false);
   const [subscribed, setSubscribed] = useState(!!(u as any).isSubscribed);
   const [subBusy, setSubBusy] = useState(false);
+  const [payNote, setPayNote] = useState("");
+
+  async function buyPremium() {
+    setPayNote("");
+    const tg = (window as any).Telegram?.WebApp;
+    try {
+      const { link } = await apiPayInvoice();
+      if (tg?.openInvoice) {
+        tg.openInvoice(link, (status: string) => {
+          if (status === "paid") setPayNote("Оплачено ✓ Премиум активируется. Переоткрой приложение.");
+          else if (status === "failed") setPayNote("Платёж не прошёл. Попробуй ещё раз.");
+        });
+      } else {
+        window.open(link, "_blank");
+      }
+    } catch (e) {
+      setPayNote((e as Error).message);
+    }
+  }
 
   async function toggleSub() {
     if (subBusy) return;
@@ -96,11 +115,18 @@ export default function ProfileScreen({ user }: { user: User }) {
             </div>
           ))}
         </div>
-        {!u.isPremium && (
-          <button className="cta" style={{ marginTop: 14 }}>
-            <IconCrown size={18} /> Оформить премиум · USDT
+        {u.isPremium ? (
+          <div className="premium-active">
+            ✓ Премиум активен{(u as any).premiumUntil
+              ? ` до ${new Date((u as any).premiumUntil * 1000).toLocaleDateString("ru-RU")}`
+              : ""}
+          </div>
+        ) : (
+          <button className="cta" style={{ marginTop: 14 }} onClick={buyPremium}>
+            <IconCrown size={18} /> Оформить премиум · 990 ₽
           </button>
         )}
+        {payNote && <div className="muted-note" style={{ marginTop: 10 }}>{payNote}</div>}
       </div>
 
       {/* инструменты автора */}

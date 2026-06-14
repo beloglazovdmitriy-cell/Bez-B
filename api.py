@@ -101,10 +101,12 @@ def _resolve_user(init_data: str | None) -> dict:
                 "id": uid,
                 "name": user.get("first_name", "Гость"),
                 "isAdmin": is_admin,
-                "isPremium": False,  # позже — из подписки
+                "isPremium": is_admin or storage.is_premium(f"u{uid}"),
+                "premiumUntil": storage.premium_until(f"u{uid}"),
             }
     return {"id": config.ADMIN_ID if _DEV_ADMIN else None,
-            "name": "Дмитрий", "isAdmin": _DEV_ADMIN, "isPremium": False}
+            "name": "Дмитрий", "isAdmin": _DEV_ADMIN,
+            "isPremium": _DEV_ADMIN, "premiumUntil": 0}
 
 
 def _ctx(p: str, init_data: str | None, write: bool = False) -> str:
@@ -747,6 +749,34 @@ def dca_checkin(x_init_data: str | None = Header(default=None)):
     if not uid:
         raise HTTPException(status_code=401, detail="Откройте приложение из Telegram")
     return storage.dca_checkin(f"u{uid}")
+
+
+@app.post("/api/pay/invoice")
+def pay_invoice(x_init_data: str | None = Header(default=None)):
+    """Создать ссылку на оплату премиума (Telegram-инвойс через провайдера).
+    Возвращает {link} для tg.openInvoice. 503 — если оплата не подключена."""
+    uid = _resolve_user(x_init_data).get("id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Откройте приложение из Telegram")
+    if not config.PAYMENT_PROVIDER_TOKEN:
+        raise HTTPException(status_code=503, detail="Оплата скоро будет подключена")
+    import requests
+    amount = config.PREMIUM_PRICE_RUB * 100  # в копейках
+    body = {
+        "title": config.PREMIUM_TITLE,
+        "description": "Премиум-доступ «Без Б»: расширенные AI-функции и приоритет.",
+        "payload": f"premium:u{uid}",
+        "provider_token": config.PAYMENT_PROVIDER_TOKEN,
+        "currency": "RUB",
+        "prices": [{"label": config.PREMIUM_TITLE, "amount": amount}],
+    }
+    r = requests.post(
+        f"https://api.telegram.org/bot{config.BOT_TOKEN}/createInvoiceLink",
+        json=body, timeout=15)
+    data = r.json()
+    if not data.get("ok"):
+        raise HTTPException(status_code=502, detail="Не удалось создать счёт")
+    return {"link": data["result"]}
 
 
 def _tg_send(chat_id, text: str) -> None:

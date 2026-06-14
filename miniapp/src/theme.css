@@ -229,6 +229,9 @@ body {
 .switch.on { background: rgba(38,166,154,.25); border-color: var(--accent); }
 .switch.on .knob { transform: translateX(18px); background: var(--accent); }
 
+.premium-active { margin-top: 14px; text-align: center; font-weight: 700; color: var(--accent);
+  background: rgba(38,166,154,.14); border: 1px solid var(--accent); border-radius: 12px; padding: 11px; }
+
 /* ── Онбординг (мини-курс) ── */
 .onb { padding: 14px 16px; }
 .onb-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
