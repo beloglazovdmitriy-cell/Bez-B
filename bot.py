@@ -1030,6 +1030,48 @@ _MORNING_HOUR = int(os.getenv("CONTENT_MORNING_HOUR", "9"))    # будни — 
 _MIDDAY_HOUR = int(os.getenv("CONTENT_MIDDAY_HOUR", "10"))     # рубрика дня
 _SAT_HOUR = int(os.getenv("CONTENT_SAT_HOUR", "11"))          # суббота — манифест
 _PRICE_SNAPSHOT_HOUR = int(os.getenv("PRICE_SNAPSHOT_HOUR", "23"))  # снимок цен (после US-закрытия, MSK)
+_PREDICT_HOUR = int(os.getenv("PREDICT_HOUR", "10"))               # прогноз недели — Пн
+
+
+async def job_predict_weekly(context: ContextTypes.DEFAULT_TYPE):
+    """Понедельник: закрыть прошлый прогноз по цене, открыть новый, анонс в канал."""
+    if datetime.now().weekday() != 0:        # 0 = понедельник
+        return
+    import quotes
+    closed = None
+    cur = storage.pred_current()
+    if cur:
+        try:
+            price = await asyncio.to_thread(quotes.get_price_usd, cur["symbol"], True)
+            closed = storage.pred_resolve(cur["id"], float(price))
+        except Exception:
+            log.exception("predict resolve failed")
+    new = None
+    try:
+        price = await asyncio.to_thread(quotes.get_price_usd, "BTC", True)
+        new = storage.pred_create("BTC", float(price), 7)
+    except Exception:
+        log.exception("predict create failed")
+    if config.CHANNEL_ID and (closed or new):
+        parts = []
+        if closed and closed.get("result"):
+            res = "ВЫШЕ ⬆️" if closed["result"] == "up" else "НИЖЕ ⬇️"
+            parts.append(
+                f"📊 Итоги прогноза: BTC закрылся ${closed['closePrice']:,.0f} — "
+                f"правы те, кто ставил {res} уровня ${closed['target']:,.0f}."
+                .replace(",", " "))
+        if new:
+            parts.append(
+                f"🔮 Новый прогноз недели: BTC будет ВЫШЕ или НИЖЕ "
+                f"${new['target']:,.0f} к воскресенью? Голосуй в приложении 📲"
+                .replace(",", " "))
+        try:
+            await context.bot.send_message(
+                config.CHANNEL_ID, "\n\n".join(parts),
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton("📲 Голосовать в Без Б", url=config.BOT_URL)]]))
+        except Exception:
+            log.exception("predict announce failed")
 
 
 async def job_price_snapshot(context: ContextTypes.DEFAULT_TYPE):
@@ -1171,6 +1213,7 @@ def main():
         jq.run_daily(job_content_midday, time=dtime(hour=_MIDDAY_HOUR))
         jq.run_daily(job_content_saturday, time=dtime(hour=_SAT_HOUR))
         jq.run_daily(job_price_snapshot, time=dtime(hour=_PRICE_SNAPSHOT_HOUR, minute=50))
+        jq.run_daily(job_predict_weekly, time=dtime(hour=_PREDICT_HOUR))
         log.info("Снимок: Вс 18:00. Черновики: будни %02d:00 дайджест, "
                  "%02d:00 рубрика дня, Сб %02d:00 манифест.",
                  _MORNING_HOUR, _MIDDAY_HOUR, _SAT_HOUR)

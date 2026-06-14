@@ -93,6 +93,23 @@ export const apiDeposit = (pf: Pf, b: { rub: number; rate: number }) =>
 export const apiWithdraw = (pf: Pf, b: { amountUsdt: number }) =>
   postJSON(`/api/withdraw?p=${pf}`, b);
 
+// ── игра «Прогноз недели» ──
+export interface PredRound {
+  id: number; symbol: string; target: number; startTs: number; closeTs: number;
+  status: string; result: "up" | "down" | null; closePrice: number | null;
+}
+export interface Predict {
+  round: PredRound | null; myVote: "up" | "down" | null;
+  crowd: { up: number; down: number; total: number };
+  last: PredRound | null; me: { points: number; total: number };
+}
+export interface PredLeader { uid: string; name: string; points: number; total: number; }
+export const apiPredict = () => reqJSON<Predict>("/api/predict");
+export const apiPredictVote = (choice: "up" | "down") =>
+  postJSONr<{ ok: boolean; myVote: string; crowd: { up: number; down: number; total: number } }>(
+    "/api/predict/vote", { choice });
+export const apiPredictLeaderboard = () => reqJSON<PredLeader[]>("/api/predict/leaderboard");
+
 // ── оплата премиума (Telegram-инвойс через провайдера) ──
 export const apiPayInvoice = () => postJSONr<{ link: string }>("/api/pay/invoice", {});
 

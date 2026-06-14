@@ -200,6 +200,187 @@ def reactions_for(post_ids: list, uid: str) -> dict:
     return out
 
 
+# ──────────────── игра «Прогноз недели» ────────────────
+
+def _ensure_pred(conn):
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS pred_rounds ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, symbol TEXT, target REAL, "
+        "start_ts INTEGER, close_ts INTEGER, status TEXT, result TEXT, close_price REAL)")
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS pred_votes ("
+        "round_id INTEGER, uid TEXT, name TEXT, choice TEXT, ts INTEGER, "
+        "PRIMARY KEY(round_id, uid))")
+
+
+def pred_create(symbol: str, target: float, days: int = 7) -> dict:
+    now = int(time.time())
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_pred(conn)
+            cur = conn.execute(
+                "INSERT INTO pred_rounds (symbol, target, start_ts, close_ts, status) "
+                "VALUES (?, ?, ?, ?, 'open')",
+                (symbol, float(target), now, now + days * 86400))
+            conn.commit()
+            rid = cur.lastrowid
+        finally:
+            conn.close()
+    return pred_get(rid)
+
+
+def _round_row(conn, rid):
+    return conn.execute(
+        "SELECT id, symbol, target, start_ts, close_ts, status, result, close_price "
+        "FROM pred_rounds WHERE id=?", (rid,)).fetchone()
+
+
+def _round_dict(r):
+    if not r:
+        return None
+    return {"id": r[0], "symbol": r[1], "target": r[2], "startTs": r[3],
+            "closeTs": r[4], "status": r[5], "result": r[6], "closePrice": r[7]}
+
+
+def pred_get(rid: int) -> dict:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_pred(conn)
+            return _round_dict(_round_row(conn, rid))
+        finally:
+            conn.close()
+
+
+def pred_current() -> dict | None:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_pred(conn)
+            r = conn.execute(
+                "SELECT id, symbol, target, start_ts, close_ts, status, result, close_price "
+                "FROM pred_rounds WHERE status='open' ORDER BY id DESC LIMIT 1").fetchone()
+            return _round_dict(r)
+        finally:
+            conn.close()
+
+
+def pred_last_closed() -> dict | None:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_pred(conn)
+            r = conn.execute(
+                "SELECT id, symbol, target, start_ts, close_ts, status, result, close_price "
+                "FROM pred_rounds WHERE status='closed' ORDER BY id DESC LIMIT 1").fetchone()
+            return _round_dict(r)
+        finally:
+            conn.close()
+
+
+def pred_vote(round_id: int, uid: str, name: str, choice: str) -> bool:
+    if choice not in ("up", "down"):
+        return False
+    now = int(time.time())
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_pred(conn)
+            r = _round_row(conn, round_id)
+            if not r or r[5] != "open" or now > r[4]:
+                return False
+            conn.execute(
+                "INSERT INTO pred_votes (round_id, uid, name, choice, ts) VALUES (?,?,?,?,?) "
+                "ON CONFLICT(round_id, uid) DO UPDATE SET choice=excluded.choice, ts=excluded.ts",
+                (round_id, uid, name, choice, now))
+            conn.commit()
+            return True
+        finally:
+            conn.close()
+
+
+def pred_my_vote(round_id: int, uid: str):
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_pred(conn)
+            r = conn.execute("SELECT choice FROM pred_votes WHERE round_id=? AND uid=?",
+                             (round_id, uid)).fetchone()
+            return r[0] if r else None
+        finally:
+            conn.close()
+
+
+def pred_crowd(round_id: int) -> dict:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_pred(conn)
+            rows = conn.execute(
+                "SELECT choice, COUNT(*) FROM pred_votes WHERE round_id=? GROUP BY choice",
+                (round_id,)).fetchall()
+        finally:
+            conn.close()
+    d = {"up": 0, "down": 0}
+    for ch, n in rows:
+        d[ch] = n
+    d["total"] = d["up"] + d["down"]
+    return d
+
+
+def pred_resolve(round_id: int, close_price: float) -> dict | None:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_pred(conn)
+            r = _round_row(conn, round_id)
+            if not r or r[5] == "closed":
+                return _round_dict(r)
+            result = "up" if close_price >= r[2] else "down"
+            conn.execute(
+                "UPDATE pred_rounds SET status='closed', result=?, close_price=? WHERE id=?",
+                (result, float(close_price), round_id))
+            conn.commit()
+            return _round_dict(_round_row(conn, round_id))
+        finally:
+            conn.close()
+
+
+def pred_leaderboard(limit: int = 20) -> list:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_pred(conn)
+            rows = conn.execute(
+                "SELECT v.uid, MAX(v.name), "
+                "SUM(CASE WHEN v.choice=r.result THEN 1 ELSE 0 END), COUNT(*) "
+                "FROM pred_votes v JOIN pred_rounds r ON v.round_id=r.id "
+                "WHERE r.status='closed' AND r.result IS NOT NULL "
+                "GROUP BY v.uid ORDER BY 3 DESC, 4 DESC LIMIT ?", (limit,)).fetchall()
+        finally:
+            conn.close()
+    return [{"uid": x[0], "name": x[1] or "Аноним", "points": x[2], "total": x[3]}
+            for x in rows]
+
+
+def pred_my_stats(uid: str) -> dict:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_pred(conn)
+            r = conn.execute(
+                "SELECT SUM(CASE WHEN v.choice=r.result THEN 1 ELSE 0 END), COUNT(*) "
+                "FROM pred_votes v JOIN pred_rounds r ON v.round_id=r.id "
+                "WHERE r.status='closed' AND r.result IS NOT NULL AND v.uid=?",
+                (uid,)).fetchone()
+        finally:
+            conn.close()
+    pts = r[0] or 0 if r else 0
+    tot = r[1] or 0 if r else 0
+    return {"points": pts, "total": tot}
+
+
 # ──────────────── своя история цен (ежедневный снимок) ────────────────
 
 def _ensure_price_history(conn):

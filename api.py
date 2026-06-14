@@ -912,6 +912,73 @@ def qa_answer(req: QaAnswerReq, x_init_data: str | None = Header(default=None)):
     return {"ok": True}
 
 
+# ──────────────── игра «Прогноз недели» ────────────────
+
+class PredictVoteReq(BaseModel):
+    choice: str          # "up" | "down"
+
+
+class PredictCreateReq(BaseModel):
+    symbol: str = "BTC"
+    target: float | None = None
+    days: int = 7
+
+
+@app.get("/api/predict")
+def predict(x_init_data: str | None = Header(default=None)):
+    """Текущий раунд прогноза + мой голос + расклад толпы + итог прошлого + мои очки."""
+    u = _resolve_user(x_init_data)
+    uid = u.get("id")
+    cur = storage.pred_current()
+    my_vote = storage.pred_my_vote(cur["id"], f"u{uid}") if (cur and uid) else None
+    crowd = storage.pred_crowd(cur["id"]) if cur else {"up": 0, "down": 0, "total": 0}
+    me = storage.pred_my_stats(f"u{uid}") if uid else {"points": 0, "total": 0}
+    return {"round": cur, "myVote": my_vote, "crowd": crowd,
+            "last": storage.pred_last_closed(), "me": me}
+
+
+@app.post("/api/predict/vote")
+def predict_vote(req: PredictVoteReq, x_init_data: str | None = Header(default=None)):
+    u = _resolve_user(x_init_data)
+    uid = u.get("id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Откройте приложение из Telegram")
+    cur = storage.pred_current()
+    if not cur:
+        raise HTTPException(status_code=400, detail="Сейчас нет активного прогноза")
+    if not storage.pred_vote(cur["id"], f"u{uid}", u.get("name", ""), req.choice):
+        raise HTTPException(status_code=400, detail="Голос не принят (раунд закрыт?)")
+    return {"ok": True, "myVote": req.choice, "crowd": storage.pred_crowd(cur["id"])}
+
+
+@app.get("/api/predict/leaderboard")
+def predict_leaderboard():
+    return storage.pred_leaderboard()
+
+
+@app.post("/api/predict/create")
+def predict_create(req: PredictCreateReq, x_init_data: str | None = Header(default=None)):
+    _require_owner(x_init_data)
+    sym = req.symbol.strip().upper()
+    target = req.target
+    if not target:
+        from quotes import get_price_usd
+        target = get_price_usd(sym, True)
+    return storage.pred_create(sym, float(target), req.days)
+
+
+@app.post("/api/predict/resolve")
+def predict_resolve(x_init_data: str | None = Header(default=None)):
+    """Закрыть текущий раунд по текущей цене (вручную, владелец)."""
+    _require_owner(x_init_data)
+    cur = storage.pred_current()
+    if not cur:
+        raise HTTPException(status_code=400, detail="Нет открытого раунда")
+    from quotes import get_price_usd
+    price = get_price_usd(cur["symbol"], True)
+    return storage.pred_resolve(cur["id"], float(price))
+
+
 @app.post("/api/subscribe")
 def subscribe(x_init_data: str | None = Header(default=None)):
     """Подписаться на мгновенные пуши о сделках Без Б — премиум-функция."""

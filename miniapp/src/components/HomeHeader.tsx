@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { apiHome, type Home } from "../data";
 import DcaStreak from "./DcaStreak";
 import Onboarding from "./Onboarding";
+import PredictCard from "./PredictCard";
 
 const SIDE_LABEL = { buy: "купил", sell: "продал" } as const;
 
@@ -48,6 +49,7 @@ export default function HomeHeader() {
   const t = h?.bezbToday;
   return (
     <div className="home">
+      <PredictCard />
       <DcaStreak />
       <Onboarding />
       {m && (
