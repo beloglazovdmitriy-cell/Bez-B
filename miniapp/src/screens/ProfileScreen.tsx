@@ -60,16 +60,23 @@ export default function ProfileScreen({ user }: { user: User }) {
     }
   }
 
+  const [subNote, setSubNote] = useState("");
+
   async function toggleSub() {
     if (subBusy) return;
+    if (!u.isPremium && !subscribed) {     // включить пуши можно только в премиуме
+      setSubNote("Мгновенные пуши о сделках — в премиуме 👇");
+      return;
+    }
     const next = !subscribed;
-    setSubBusy(true);
+    setSubBusy(true); setSubNote("");
     setSubscribed(next);            // оптимистично
     try {
       const r = next ? await apiSubscribe() : await apiUnsubscribe();
       setSubscribed(r.isSubscribed);
-    } catch {
+    } catch (e) {
       setSubscribed(!next);         // откат при ошибке
+      setSubNote((e as Error).message);
     } finally {
       setSubBusy(false);
     }
@@ -88,16 +95,18 @@ export default function ProfileScreen({ user }: { user: User }) {
         </div>
       </div>
 
-      {/* уведомления о сделках Без Б */}
+      {/* уведомления о сделках Без Б (премиум) */}
       <div className="card sub-card" onClick={toggleSub}>
         <div className="sub-text">
-          <div className="sub-title">🔔 Сделки Без Б — мгновенно</div>
+          <div className="sub-title">🔔 Сделки Без Б — мгновенно
+            {!u.isPremium && <span className="prem-tag">премиум</span>}</div>
           <div className="sub-sub">Пуш при каждой покупке/продаже, раньше канала</div>
         </div>
         <span className={"switch" + (subscribed ? " on" : "")} aria-hidden>
           <span className="knob" />
         </span>
       </div>
+      {subNote && <div className="muted-note" style={{ marginTop: -4, marginBottom: 4 }}>{subNote}</div>}
 
       {/* подписка */}
       <div className="card premium">

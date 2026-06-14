@@ -367,8 +367,10 @@ def _ai_or_503():
 
 @app.post("/api/analyze")
 def analyze(p: str = "bezb", x_init_data: str | None = Header(default=None)):
-    """AI-разбор выбранного портфеля."""
+    """AI-разбор портфеля. Публичный Без Б — бесплатно (витрина); свой — премиум."""
     _ctx(p, x_init_data)
+    if p == "me":
+        _require_premium(x_init_data, "AI-разбор своего портфеля")
     _ai_or_503()
     try:
         text = ai.analyze_portfolio(_ai_portfolio_data(p))
@@ -379,8 +381,10 @@ def analyze(p: str = "bezb", x_init_data: str | None = Header(default=None)):
 
 @app.post("/api/scenarios")
 def scenarios(p: str = "bezb", x_init_data: str | None = Header(default=None)):
-    """AI-сценарии «что если рынок дёрнется» по выбранному портфелю."""
+    """AI-сценарии «что если рынок дёрнется». Свой портфель — премиум."""
     _ctx(p, x_init_data)
+    if p == "me":
+        _require_premium(x_init_data, "AI-сценарии по своему портфелю")
     _ai_or_503()
     try:
         text = ai.scenarios(_ai_portfolio_data(p))
@@ -504,6 +508,16 @@ def _chart_for(kind: str) -> bytes | None:
 def _require_owner(init_data):
     if not _resolve_user(init_data)["isAdmin"]:
         raise HTTPException(status_code=403, detail="Только владелец")
+
+
+def _is_premium(init_data) -> bool:
+    u = _resolve_user(init_data)
+    return bool(u.get("isAdmin") or u.get("isPremium"))
+
+
+def _require_premium(init_data, what: str = "Эта функция"):
+    if not _is_premium(init_data):
+        raise HTTPException(status_code=402, detail=f"{what} доступна в премиуме")
 
 
 @app.post("/api/publish")
@@ -821,7 +835,8 @@ class QaAnswerReq(BaseModel):
     text: str
 
 
-_QA_DAILY_LIMIT = 5
+_QA_LIMIT_FREE = 1
+_QA_LIMIT_PREMIUM = 10
 
 
 @app.post("/api/qa/ask")
@@ -834,9 +849,11 @@ def qa_ask(req: QaAskReq, x_init_data: str | None = Header(default=None)):
     q = (req.question or "").strip()
     if len(q) < 5:
         raise HTTPException(status_code=400, detail="Сформулируй вопрос подробнее")
-    if storage.qa_count_today(f"u{uid}") >= _QA_DAILY_LIMIT:
-        raise HTTPException(status_code=429,
-                            detail="Лимит вопросов на сегодня исчерпан. Возвращайся завтра")
+    limit = _QA_LIMIT_PREMIUM if (u.get("isAdmin") or u.get("isPremium")) else _QA_LIMIT_FREE
+    if storage.qa_count_today(f"u{uid}") >= limit:
+        msg = ("Лимит вопросов на сегодня исчерпан. В премиуме — до 10 вопросов в день."
+               if limit == _QA_LIMIT_FREE else "Лимит вопросов на сегодня исчерпан.")
+        raise HTTPException(status_code=429, detail=msg)
     # AI-ответ (если доступен)
     answer, by = None, None
     if ai.available():
@@ -892,10 +909,11 @@ def qa_answer(req: QaAnswerReq, x_init_data: str | None = Header(default=None)):
 
 @app.post("/api/subscribe")
 def subscribe(x_init_data: str | None = Header(default=None)):
-    """Подписаться на мгновенные пуши о сделках Без Б (нужна авторизация Telegram)."""
+    """Подписаться на мгновенные пуши о сделках Без Б — премиум-функция."""
     uid = _resolve_user(x_init_data).get("id")
     if not uid:
         raise HTTPException(status_code=401, detail="Откройте приложение из Telegram")
+    _require_premium(x_init_data, "Мгновенные пуши о сделках")
     storage.add_subscriber(uid)
     return {"ok": True, "isSubscribed": True}
 

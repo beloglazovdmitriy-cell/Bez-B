@@ -51,7 +51,9 @@ def notify_trade(tx: dict) -> int:
     side = (tx.get("type") or tx.get("side") or "").lower()
     if side not in ("buy", "sell", "asset_deposit"):
         return 0
-    subs = storage.list_subscribers()
+    # только активные премиум-подписчики (плюс владелец)
+    subs = [u for u in storage.list_subscribers()
+            if storage.is_premium(f"u{u}") or u == config.ADMIN_ID]
     if not subs:
         return 0
     import requests
