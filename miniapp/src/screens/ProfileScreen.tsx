@@ -4,6 +4,7 @@ import {
 } from "../components/Icons";
 import ContentStudio from "../components/ContentStudio";
 import QaSheet from "../components/QaSheet";
+import QuizSheet from "../components/QuizSheet";
 import { apiSubscribe, apiUnsubscribe, apiPayInvoice } from "../data";
 import { mockUser } from "../mock";
 
@@ -38,6 +39,7 @@ export default function ProfileScreen({ user }: { user: User }) {
   const u = user;
   const [studio, setStudio] = useState(false);
   const [qa, setQa] = useState(false);
+  const [quiz, setQuiz] = useState(false);
   const [subscribed, setSubscribed] = useState(!!(u as any).isSubscribed);
   const [subBusy, setSubBusy] = useState(false);
   const [payNote, setPayNote] = useState("");
@@ -152,6 +154,11 @@ export default function ProfileScreen({ user }: { user: User }) {
           <span>Задать вопрос {u.isAdmin ? "· ответить" : "(AI / автор)"}</span>
           <IconChevron size={18} className="lr-chev" />
         </button>
+        <button className="list-row" onClick={() => setQuiz(true)}>
+          <span className="lr-ic accent">🚩</span>
+          <span>Квиз «Детектор буллшита»</span>
+          <IconChevron size={18} className="lr-chev" />
+        </button>
         <button className="list-row" onClick={shareResult}>
           <span className="lr-ic accent"><IconShare size={18} /></span>
           <span>Поделиться результатом</span>
@@ -168,6 +175,7 @@ export default function ProfileScreen({ user }: { user: User }) {
 
       {studio && <ContentStudio onClose={() => setStudio(false)} />}
       {qa && <QaSheet isAdmin={u.isAdmin} onClose={() => setQa(false)} />}
+      {quiz && <QuizSheet onClose={() => setQuiz(false)} />}
     </div>
   );
 }

@@ -912,6 +912,52 @@ def qa_answer(req: QaAnswerReq, x_init_data: str | None = Header(default=None)):
     return {"ok": True}
 
 
+# ──────────────── квиз «Детектор буллшита» ────────────────
+
+class QuizAnswerReq(BaseModel):
+    qid: int
+    bs: bool          # ответ игрока: True = «это буллшит»
+
+
+@app.get("/api/quiz/next")
+def quiz_next(x_init_data: str | None = Header(default=None)):
+    """Следующая неотвеченная карточка (без ключа) + статистика игрока."""
+    import quiz_data
+    uid = _resolve_user(x_init_data).get("id")
+    st = storage.quiz_get(f"u{uid}") if uid else {"score": 0, "streak": 0, "best": 0, "answered": []}
+    answered = set(st["answered"])
+    nxt = next((q for q in quiz_data.QUESTIONS if q["id"] not in answered), None)
+    total = len(quiz_data.QUESTIONS)
+    if not nxt:
+        return {"done": True, "stats": st, "total": total, "answeredCount": len(answered)}
+    return {"done": False, "question": {"id": nxt["id"], "text": nxt["text"]},
+            "stats": st, "total": total, "answeredCount": len(answered)}
+
+
+@app.post("/api/quiz/answer")
+def quiz_answer(req: QuizAnswerReq, x_init_data: str | None = Header(default=None)):
+    """Проверить ответ (ключ на сервере), вернуть разбор и обновлённый счёт."""
+    import quiz_data
+    uid = _resolve_user(x_init_data).get("id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Откройте приложение из Telegram")
+    q = quiz_data.get(req.qid)
+    if not q:
+        raise HTTPException(status_code=404, detail="Вопрос не найден")
+    correct = (req.bs == q["bs"])
+    st = storage.quiz_record(f"u{uid}", req.qid, correct)
+    return {"correct": correct, "bs": q["bs"], "explain": q["explain"], "stats": st}
+
+
+@app.post("/api/quiz/reset")
+def quiz_reset(x_init_data: str | None = Header(default=None)):
+    uid = _resolve_user(x_init_data).get("id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Откройте приложение из Telegram")
+    storage.quiz_reset_answered(f"u{uid}")
+    return {"ok": True}
+
+
 # ──────────────── игра «Прогноз недели» ────────────────
 
 class PredictVoteReq(BaseModel):

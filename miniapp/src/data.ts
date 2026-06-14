@@ -93,6 +93,18 @@ export const apiDeposit = (pf: Pf, b: { rub: number; rate: number }) =>
 export const apiWithdraw = (pf: Pf, b: { amountUsdt: number }) =>
   postJSON(`/api/withdraw?p=${pf}`, b);
 
+// ── квиз «Детектор буллшита» ──
+export interface QuizStats { score: number; streak: number; best: number; answered: number[]; }
+export interface QuizNext {
+  done: boolean; question?: { id: number; text: string };
+  stats: QuizStats; total: number; answeredCount: number;
+}
+export interface QuizResult { correct: boolean; bs: boolean; explain: string; stats: QuizStats; }
+export const apiQuizNext = () => reqJSON<QuizNext>("/api/quiz/next");
+export const apiQuizAnswer = (qid: number, bs: boolean) =>
+  postJSONr<QuizResult>("/api/quiz/answer", { qid, bs });
+export const apiQuizReset = () => postJSONr<{ ok: boolean }>("/api/quiz/reset", {});
+
 // ── игра «Прогноз недели» ──
 export interface PredRound {
   id: number; symbol: string; target: number; startTs: number; closeTs: number;

@@ -200,6 +200,70 @@ def reactions_for(post_ids: list, uid: str) -> dict:
     return out
 
 
+# ──────────────── квиз «Детектор буллшита» ────────────────
+
+def _ensure_quiz(conn):
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS quiz ("
+        "uid TEXT PRIMARY KEY, score INTEGER, streak INTEGER, best INTEGER, answered TEXT)")
+
+
+def quiz_get(uid: str) -> dict:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_quiz(conn)
+            r = conn.execute(
+                "SELECT score, streak, best, answered FROM quiz WHERE uid=?", (uid,)).fetchone()
+        finally:
+            conn.close()
+    if not r:
+        return {"score": 0, "streak": 0, "best": 0, "answered": []}
+    try:
+        answered = json.loads(r[3]) if r[3] else []
+    except Exception:
+        answered = []
+    return {"score": r[0], "streak": r[1], "best": r[2], "answered": answered}
+
+
+def quiz_record(uid: str, qid: int, correct: bool) -> dict:
+    st = quiz_get(uid)
+    if qid not in st["answered"]:
+        st["answered"].append(qid)
+    st["score"] = st["score"] + (1 if correct else 0)
+    st["streak"] = st["streak"] + 1 if correct else 0
+    st["best"] = max(st["best"], st["streak"])
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_quiz(conn)
+            conn.execute(
+                "INSERT INTO quiz (uid, score, streak, best, answered) VALUES (?,?,?,?,?) "
+                "ON CONFLICT(uid) DO UPDATE SET score=excluded.score, streak=excluded.streak, "
+                "best=excluded.best, answered=excluded.answered",
+                (uid, st["score"], st["streak"], st["best"], json.dumps(st["answered"])))
+            conn.commit()
+        finally:
+            conn.close()
+    return st
+
+
+def quiz_reset_answered(uid: str) -> None:
+    """Сбросить пройденные вопросы (счёт/рекорд сохраняются) — чтобы пройти заново."""
+    st = quiz_get(uid)
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_quiz(conn)
+            conn.execute(
+                "INSERT INTO quiz (uid, score, streak, best, answered) VALUES (?,?,?,?,'[]') "
+                "ON CONFLICT(uid) DO UPDATE SET answered='[]'",
+                (uid, st["score"], st["streak"], st["best"]))
+            conn.commit()
+        finally:
+            conn.close()
+
+
 # ──────────────── игра «Прогноз недели» ────────────────
 
 def _ensure_pred(conn):
