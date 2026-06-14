@@ -1,7 +1,7 @@
 """Котировки активов и курс USD/RUB.
 
 Крипта   -> Binance public API (быстро, без блокировок), фолбэк на yfinance.
-Акции/ETF-> yfinance.
+Акции/ETF-> Finnhub (ключ FINNHUB_API_KEY, достижим с VPS), фолбэк на yfinance.
 Курс USD/RUB -> официальный API ЦБ РФ (без ключа).
 
 Надёжность: последняя удачная цена кэшируется в файл price_cache.json и
@@ -87,6 +87,24 @@ def _fetch_binance(base: str):
     return float(resp.json()["price"])
 
 
+# Акции/ETF США — Finnhub (достижим с VPS, в отличие от Yahoo). Ключ из .env;
+# без ключа источник пропускается и работает прежний путь (yfinance/кэш).
+_FINNHUB_KEY = os.getenv("FINNHUB_API_KEY", "")
+_FINNHUB_URL = "https://finnhub.io/api/v1/quote"
+
+
+def _fetch_finnhub(symbol: str) -> float:
+    if not _FINNHUB_KEY:
+        raise ValueError("нет ключа Finnhub")
+    r = requests.get(_FINNHUB_URL,
+                     params={"symbol": symbol, "token": _FINNHUB_KEY}, timeout=8)
+    r.raise_for_status()
+    c = r.json().get("c")          # current price; 0 при неизвестном тикере
+    if _isnum(c) and float(c) > 0:
+        return float(c)
+    raise ValueError("finnhub: нет цены")
+
+
 # Yahoo (yfinance) недоступен с части серверов и висит по 30с. Жёсткий короткий
 # таймаут через curl_cffi-сессию, чтобы не блокировать ответы — акции тогда берутся
 # из кэша последних известных цен, а не из 30-секундного зависания.
@@ -134,6 +152,12 @@ def _fetch_live(ticker: str) -> float:
             return _fetch_binance(base)
         except Exception:
             return _fetch_yfinance(f"{base}-USD")   # фолбэк
+    # акции/ETF США: Finnhub (если есть ключ), затем yfinance
+    if _FINNHUB_KEY:
+        try:
+            return _fetch_finnhub(base)
+        except Exception:
+            pass
     return _fetch_yfinance(base)
 
 
