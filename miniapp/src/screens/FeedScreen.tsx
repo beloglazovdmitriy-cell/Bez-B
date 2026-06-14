@@ -4,7 +4,7 @@ import { IconFeed } from "../components/Icons";
 import HomeHeader from "../components/HomeHeader";
 
 const LABEL: Record<string, string> = {
-  digest: "📰 Дайджест", crowd: "🌡 Разбор толпы", scenarios: "🔮 Сценарии",
+  digest: "📰 Дайджест", ta: "📐 Теханализ", crowd: "🌡 Разбор толпы", scenarios: "🔮 Сценарии",
   edu: "📚 Ликбез", manifest: "🧭 Манифест", bullshit: "🚩 Детектор буллшита",
   trade: "🧠 Разбор сделки", custom: "✍️ Пост",
 };

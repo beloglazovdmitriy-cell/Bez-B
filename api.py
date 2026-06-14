@@ -496,9 +496,12 @@ def _chart_for(kind: str) -> bytes | None:
             import market_mood
             f = market_mood.snapshot().get("fng")
             return charts.fear_greed_gauge(f["value"], f.get("label_ru", "")) if f else None
+        # теханализ, сценарии и дайджест — TA-график «карта уровней» (BTC = прокси рынка)
+        if kind in ("ta", "scenarios", "digest"):
+            return charts.ta_chart("BTCUSDT", "1d")
         storage.use_uid("bezb")
         s = portfolio.summary()
-        if kind in ("scenarios", "trade", "portfolio"):
+        if kind in ("trade", "portfolio"):
             return charts.composition_pie(portfolio.pie_slices(s))
         return charts.index_line()
     except Exception:
@@ -558,6 +561,8 @@ def content_generate(kind: str, x_init_data: str | None = Header(default=None)):
         elif kind == "crowd":
             import market_mood
             text = ai.crowd_post(market_mood.context())
+        elif kind == "ta":
+            text = ai.ta_bezb("BTCUSDT", "1d")
         elif kind in ("edu", "manifest", "bullshit"):
             text = ai.content_post(kind)
         else:

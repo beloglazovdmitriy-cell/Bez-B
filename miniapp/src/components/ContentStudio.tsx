@@ -7,6 +7,7 @@ import { IconAI, IconChannel } from "./Icons";
 
 const RUBRICS: { kind: string; label: string }[] = [
   { kind: "digest", label: "📰 Дайджест" },
+  { kind: "ta", label: "📐 Теханализ" },
   { kind: "crowd", label: "🌡 Разбор толпы" },
   { kind: "scenarios", label: "🔮 Сценарии" },
   { kind: "edu", label: "📚 Ликбез" },
@@ -14,7 +15,7 @@ const RUBRICS: { kind: string; label: string }[] = [
   { kind: "bullshit", label: "🚩 Детектор Б" },
 ];
 const LABEL: Record<string, string> = {
-  digest: "📰 Дайджест", crowd: "🌡 Разбор толпы", scenarios: "🔮 Сценарии",
+  digest: "📰 Дайджест", ta: "📐 Теханализ", crowd: "🌡 Разбор толпы", scenarios: "🔮 Сценарии",
   edu: "📚 Ликбез", manifest: "🧭 Манифест", bullshit: "🚩 Детектор буллшита",
   trade: "🧠 Сделка", custom: "✍️ Моя тема",
 };

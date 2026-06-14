@@ -293,6 +293,71 @@ def fear_greed_gauge(value: int, label: str = "") -> bytes:
     return _render(fig)
 
 
+def ta_chart(symbol: str = "BTCUSDT", interval: str = "1d") -> bytes:
+    """TA-график в стиле «карты уровней»: свечи Хейкен Аши на тёмном фоне +
+    горизонтальные авто-уровни поддержки/сопротивления с ценниками. Бренд «Без Б».
+    Только крипта (данные Binance). Возвращает PNG (сплошной тёмный фон)."""
+    import techa
+    fig, ax = plt.subplots(figsize=(9, 5))
+    fig.patch.set_facecolor("#0e1117")
+    ax.set_facecolor("#0e1117")
+    a = techa.analyze(symbol, interval)
+    base = symbol.replace("USDT", "")
+    if not a:
+        ax.text(0.5, 0.5, f"Нет данных по {base}", transform=ax.transAxes,
+                ha="center", va="center", color="#787b86")
+        ax.axis("off")
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=135, facecolor="#0e1117")
+        plt.close(fig)
+        buf.seek(0)
+        return buf.read()
+
+    ha = a["ha"]
+    n = len(ha)
+    for i, b in enumerate(ha):
+        up = b["c"] >= b["o"]
+        col = _ACCENT if up else _RED
+        ax.plot([i, i], [b["l"], b["h"]], color=col, linewidth=0.6, zorder=2)
+        lo = min(b["o"], b["c"])
+        hgt = abs(b["c"] - b["o"]) or (b["h"] * 0.0006)
+        ax.add_patch(plt.Rectangle((i - 0.3, lo), 0.6, hgt, color=col,
+                                   zorder=3, linewidth=0))
+
+    last = a["last"]
+    xr = n - 1
+    for L in a["levels"]:
+        c = _RED if L["kind"] == "resistance" else _ACCENT
+        ax.axhline(L["value"], color=c, linewidth=1.0, alpha=0.65, zorder=1)
+        ax.text(n + n * 0.005, L["value"], techa._m(L["value"]), color=c,
+                fontsize=9, va="center", ha="left", fontweight="bold")
+    ax.axhline(last, color="#ffffff", linewidth=0.8, linestyle="--", alpha=0.45, zorder=1)
+
+    ax.set_title(
+        f"{base} · {interval} · ${techa._m(last)} ({a['changePct']:+.1f}%)  —  карта уровней «Без Б»",
+        color="#d1d4dc", fontweight="bold", fontsize=12, pad=8)
+    step = max(1, n // 6)
+    idxs = list(range(0, n, step))
+    ax.set_xticks(idxs)
+    ax.set_xticklabels(
+        [datetime.utcfromtimestamp(ha[i]["t"] / 1000).strftime("%m.%y") for i in idxs])
+    ax.set_xlim(-1, n + n * 0.10)
+    ax.grid(True, axis="y", color="#1c232d", linewidth=0.5)
+    for sp in ax.spines.values():
+        sp.set_color("#2a2e39")
+    ax.tick_params(colors="#787b86", labelsize=9)
+    fig.text(0.5, 0.50, "Без Б", ha="center", va="center", color="#ffffff",
+             fontsize=46, fontweight="bold", alpha=0.05)
+    fig.text(0.99, 0.01, "Не сигнал — карта уровней. Не ИИР.", ha="right", va="bottom",
+             color="#4a4e59", fontsize=8)
+    buf = io.BytesIO()
+    fig.tight_layout()
+    fig.savefig(buf, format="png", dpi=135, facecolor="#0e1117")
+    plt.close(fig)
+    buf.seek(0)
+    return buf.read()
+
+
 def _render(fig) -> bytes:
     buf = io.BytesIO()
     fig.tight_layout()
