@@ -42,7 +42,7 @@ async function getJSON<T>(path: string, fallback: T): Promise<T> {
 }
 
 // pf — какой портфель: "bezb" (публичный) или "me" (личный пользователя)
-export type Pf = "bezb" | "me";
+export type Pf = "bezb" | "me" | "fantasy";
 export const loadSummary = (pf: Pf) => getJSON(`/api/summary?p=${pf}`, mockSummary);
 export const loadHistory = (pf: Pf) => getJSON(`/api/history?p=${pf}`, mockHistory);
 export const loadBench = (pf: Pf) => getJSON(`/api/compare?p=${pf}`, mockBench);
@@ -92,6 +92,17 @@ export const apiDeposit = (pf: Pf, b: { rub: number; rate: number }) =>
   postJSON(`/api/deposit?p=${pf}`, b);
 export const apiWithdraw = (pf: Pf, b: { amountUsdt: number }) =>
   postJSON(`/api/withdraw?p=${pf}`, b);
+
+// ── сезон фэнтези-портфелей ──
+export interface Fantasy {
+  season: { startTs: number; endTs: number };
+  joined: boolean; startCapital: number; value: number | null;
+  returnPct: number | null; rank: number | null; players: number; bezbReturnPct: number;
+}
+export interface FantasyLeader { name: string; value: number; returnPct: number; }
+export const apiFantasy = () => reqJSON<Fantasy>("/api/fantasy");
+export const apiFantasyJoin = () => reqJSON<Fantasy>("/api/fantasy/join", "POST");
+export const apiFantasyLeaderboard = () => reqJSON<FantasyLeader[]>("/api/fantasy/leaderboard");
 
 // ── квиз «Детектор буллшита» ──
 export interface QuizStats { score: number; streak: number; best: number; answered: number[]; }

@@ -23,8 +23,8 @@ export default function TradeScreen({
 }) {
   const [action, setAction] = useState<Action | null>(null);
 
-  // «Без Б» меняет только владелец; свой портфель ведёт каждый
-  const canEdit = pf === "me" || user.isAdmin;
+  // «Без Б» меняет только владелец; свой и фэнтези-портфель ведёт каждый
+  const canEdit = pf === "me" || pf === "fantasy" || user.isAdmin;
   if (!canEdit) {
     return (
       <div className="content">
@@ -40,7 +40,9 @@ export default function TradeScreen({
   return (
     <div className="content">
       <div className="section-title" style={{ marginTop: 4 }}>
-        {pf === "me" ? "Мой портфель · операции" : <><Brand size={14} /> · операции (владелец)</>}
+        {pf === "fantasy" ? "🏆 Фэнтези · операции (виртуальные)"
+          : pf === "me" ? "Мой портфель · операции"
+          : <><Brand size={14} /> · операции (владелец)</>}
       </div>
 
       <div className="actions-grid">
@@ -54,7 +56,9 @@ export default function TradeScreen({
       </div>
 
       <div className="disclaimer">
-        {pf === "me"
+        {pf === "fantasy"
+          ? "Виртуальные деньги для сезона-челленджа. Реальные цены, азарт без риска."
+          : pf === "me"
           ? "Это твой личный портфель — виден только тебе."
           : "Сделки попадают в журнал и (если подключён) в канал."}
       </div>

@@ -9,7 +9,10 @@ export default function PortfolioSwitcher({ pf, onChange }: { pf: Pf; onChange: 
         <Brand size={16} />
       </button>
       <button className={`pf-btn ${pf === "me" ? "on" : ""}`} onClick={() => onChange("me")}>
-        <IconProfile size={16} /> Мой портфель
+        <IconProfile size={16} /> Мой
+      </button>
+      <button className={`pf-btn ${pf === "fantasy" ? "on" : ""}`} onClick={() => onChange("fantasy")}>
+        🏆 Фэнтези
       </button>
     </div>
   );

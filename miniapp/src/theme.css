@@ -274,6 +274,16 @@ body {
   font-size: 14px; font-weight: 600; border-radius: 9px; cursor: pointer; transition: background .12s, color .12s; }
 .seg-btn.on { background: var(--surface-2); color: var(--text); }
 
+/* ── Сезон фэнтези-портфелей ── */
+.fantasy { padding: 14px 16px; margin-bottom: 12px; }
+.fan-pitch { font-size: 14px; line-height: 1.45; margin-top: 8px; color: var(--text); }
+.fan-row { display: flex; gap: 8px; margin-top: 10px; }
+.fan-stat { flex: 1; text-align: center; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px 6px; }
+.fan-val { font-size: 19px; font-weight: 800; }
+.fan-cap { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.fan-hint { font-size: 12px; color: var(--muted); margin-top: 10px; }
+
 /* ── Квиз «Детектор буллшита» ── */
 .quiz-stats { display: flex; gap: 14px; justify-content: center; font-size: 13px; color: var(--muted); margin-bottom: 8px; }
 .quiz-badges { display: flex; gap: 10px; justify-content: center; margin-bottom: 4px; }

@@ -200,6 +200,95 @@ def reactions_for(post_ids: list, uid: str) -> dict:
     return out
 
 
+# ──────────────── сезон фэнтези-портфелей ────────────────
+
+def _ensure_fantasy(conn):
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS fantasy_season ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, start_ts INTEGER, end_ts INTEGER, "
+        "status TEXT, bezb_start REAL)")
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS fantasy_players ("
+        "uid TEXT PRIMARY KEY, name TEXT, joined_ts INTEGER)")
+
+
+def _season_dict(r):
+    if not r:
+        return None
+    return {"id": r[0], "startTs": r[1], "endTs": r[2], "status": r[3], "bezbStart": r[4]}
+
+
+def fantasy_current_season() -> dict | None:
+    now = int(time.time())
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_fantasy(conn)
+            r = conn.execute(
+                "SELECT id, start_ts, end_ts, status, bezb_start FROM fantasy_season "
+                "WHERE status='active' AND end_ts > ? ORDER BY id DESC LIMIT 1",
+                (now,)).fetchone()
+            return _season_dict(r)
+        finally:
+            conn.close()
+
+
+def fantasy_ensure_season(bezb_start: float, days: int = 30) -> dict:
+    """Вернуть активный сезон; если нет — создать новый на days дней."""
+    s = fantasy_current_season()
+    if s:
+        return s
+    now = int(time.time())
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_fantasy(conn)
+            conn.execute(
+                "INSERT INTO fantasy_season (start_ts, end_ts, status, bezb_start) "
+                "VALUES (?, ?, 'active', ?)", (now, now + days * 86400, float(bezb_start)))
+            conn.commit()
+        finally:
+            conn.close()
+    return fantasy_current_season()
+
+
+def fantasy_add_player(uid: str, name: str) -> None:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_fantasy(conn)
+            conn.execute(
+                "INSERT INTO fantasy_players (uid, name, joined_ts) VALUES (?,?,?) "
+                "ON CONFLICT(uid) DO UPDATE SET name=excluded.name",
+                (uid, name, int(time.time())))
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def fantasy_is_player(uid: str) -> bool:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_fantasy(conn)
+            return bool(conn.execute(
+                "SELECT 1 FROM fantasy_players WHERE uid=?", (uid,)).fetchone())
+        finally:
+            conn.close()
+
+
+def fantasy_players() -> list:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_fantasy(conn)
+            rows = conn.execute(
+                "SELECT uid, name FROM fantasy_players").fetchall()
+            return [{"uid": r[0], "name": r[1] or "Аноним"} for r in rows]
+        finally:
+            conn.close()
+
+
 # ──────────────── квиз «Детектор буллшита» ────────────────
 
 def _ensure_quiz(conn):

@@ -116,11 +116,11 @@ def _ctx(p: str, init_data: str | None, write: bool = False) -> str:
     p="me"   — личный портфель пользователя (нужна авторизация Telegram).
     Возвращает uid; кидает 401/403 при отсутствии прав."""
     user = _resolve_user(init_data)
-    if p == "me":
+    if p in ("me", "fantasy"):
         uid = user.get("id")
         if uid is None:
             raise HTTPException(status_code=401, detail="Откройте приложение через Telegram")
-        target = f"u{uid}"
+        target = f"u{uid}" if p == "me" else f"f{uid}"
     else:  # bezb
         if write and not user["isAdmin"]:
             raise HTTPException(status_code=403,
@@ -910,6 +910,77 @@ def qa_answer(req: QaAnswerReq, x_init_data: str | None = Header(default=None)):
     except Exception:
         pass
     return {"ok": True}
+
+
+# ──────────────── сезон фэнтези-портфелей ────────────────
+
+FANTASY_START = 10000.0
+
+
+def _uid_value(uid: str) -> float:
+    storage.use_uid(uid)
+    try:
+        return portfolio.summary()["total_value_usdt"]
+    except Exception:
+        return 0.0
+
+
+def _fantasy_status(uid):
+    bezb_val = _uid_value("bezb")
+    season = storage.fantasy_ensure_season(bezb_val)
+    players = storage.fantasy_players()
+    vals = sorted(((p["uid"], _uid_value(p["uid"])) for p in players), key=lambda x: -x[1])
+    joined = my_value = rank = ret = None
+    joined = False
+    if uid:
+        fid = f"f{uid}"
+        joined = storage.fantasy_is_player(fid)
+        if joined:
+            my_value = _uid_value(fid)
+            ret = (my_value / FANTASY_START - 1) * 100
+            rank = next((i + 1 for i, (u, _) in enumerate(vals) if u == fid), None)
+    bezb_start = season.get("bezbStart") or 0
+    bezb_ret = (_uid_value("bezb") / bezb_start - 1) * 100 if bezb_start > 0 else 0.0
+    return {
+        "season": {"startTs": season["startTs"], "endTs": season["endTs"]},
+        "joined": joined, "startCapital": FANTASY_START,
+        "value": round(my_value, 2) if my_value is not None else None,
+        "returnPct": round(ret, 1) if ret is not None else None,
+        "rank": rank, "players": len(players),
+        "bezbReturnPct": round(bezb_ret, 1),
+    }
+
+
+@app.get("/api/fantasy")
+def fantasy(x_init_data: str | None = Header(default=None)):
+    return _fantasy_status(_resolve_user(x_init_data).get("id"))
+
+
+@app.post("/api/fantasy/join")
+def fantasy_join(x_init_data: str | None = Header(default=None)):
+    u = _resolve_user(x_init_data)
+    uid = u.get("id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Откройте приложение из Telegram")
+    fid = f"f{uid}"
+    storage.fantasy_ensure_season(_uid_value("bezb"))
+    if not storage.fantasy_is_player(fid):
+        storage.use_uid(fid)
+        if portfolio.summary()["total_value_usdt"] <= 0:
+            portfolio.add_deposit(FANTASY_START, 1.0)   # виртуальный капитал
+        storage.fantasy_add_player(fid, u.get("name", ""))
+    return _fantasy_status(uid)
+
+
+@app.get("/api/fantasy/leaderboard")
+def fantasy_leaderboard():
+    out = []
+    for p in storage.fantasy_players():
+        v = _uid_value(p["uid"])
+        out.append({"name": p["name"], "value": round(v),
+                    "returnPct": round((v / FANTASY_START - 1) * 100, 1)})
+    out.sort(key=lambda x: -x["value"])
+    return out[:20]
 
 
 # ──────────────── квиз «Детектор буллшита» ────────────────

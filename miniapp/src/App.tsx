@@ -40,7 +40,7 @@ export default function App() {
       {showSwitch && <PortfolioSwitcher pf={pf} onChange={setPf} />}
 
       {tab === "feed" && <FeedScreen />}
-      {tab === "portfolio" && <PortfolioScreen summary={data.summary} pf={pf} />}
+      {tab === "portfolio" && <PortfolioScreen summary={data.summary} pf={pf} onReload={data.reload} />}
       {tab === "chart" && <ChartScreen history={data.history} bench={data.bench} />}
       {tab === "journal" && <JournalScreen journal={data.journal} user={data.user} pf={pf} />}
       {tab === "calc" && <CalcScreen />}

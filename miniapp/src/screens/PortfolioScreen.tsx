@@ -5,16 +5,19 @@ import PositionsList from "../components/PositionsList";
 import CopySheet from "../components/CopySheet";
 import AnalysisSheet from "../components/AnalysisSheet";
 import AiSheet from "../components/AiSheet";
+import FantasyBanner from "../components/FantasyBanner";
 import { IconCopy, IconAI, IconScenario } from "../components/Icons";
 import { apiScenarios, type Summary, type Pf } from "../data";
 
-export default function PortfolioScreen({ summary, pf }: { summary: Summary; pf: Pf }) {
+export default function PortfolioScreen({ summary, pf, onReload }:
+  { summary: Summary; pf: Pf; onReload?: () => void }) {
   const [copy, setCopy] = useState(false);
   const [analyze, setAnalyze] = useState(false);
   const [scen, setScen] = useState(false);
   const hasPositions = summary.positions.length > 0;
   return (
     <div className="content">
+      {pf === "fantasy" && <FantasyBanner onJoined={() => onReload?.()} />}
       <BalanceCard s={summary} />
       {hasPositions ? (
         <>
