@@ -1029,6 +1029,25 @@ async def job_weekly(context: ContextTypes.DEFAULT_TYPE):
 _MORNING_HOUR = int(os.getenv("CONTENT_MORNING_HOUR", "9"))    # будни — дайджест
 _MIDDAY_HOUR = int(os.getenv("CONTENT_MIDDAY_HOUR", "10"))     # рубрика дня
 _SAT_HOUR = int(os.getenv("CONTENT_SAT_HOUR", "11"))          # суббота — манифест
+_PRICE_SNAPSHOT_HOUR = int(os.getenv("PRICE_SNAPSHOT_HOUR", "23"))  # снимок цен (после US-закрытия, MSK)
+
+
+async def job_price_snapshot(context: ContextTypes.DEFAULT_TYPE):
+    """Раз в день сохранить цену закрытия по всем тикерам портфелей —
+    копим собственную историю цен (вперёд)."""
+    import quotes
+    today = datetime.now().date().isoformat()
+    tickers = storage.all_held_tickers()
+    saved = 0
+    for tk in tickers:
+        try:
+            price = await asyncio.to_thread(quotes.get_price_usd, tk, True)
+            if price:
+                storage.save_price(tk, today, price)
+                saved += 1
+        except Exception:
+            pass
+    log.info("Снимок цен: сохранено %d/%d тикеров за %s", saved, len(tickers), today)
 
 _KIND_LABEL = {
     "digest": "📰 Дайджест", "scenarios": "🔮 Сценарии", "edu": "📚 Ликбез",
@@ -1151,6 +1170,7 @@ def main():
         jq.run_daily(job_content_morning, time=dtime(hour=_MORNING_HOUR))
         jq.run_daily(job_content_midday, time=dtime(hour=_MIDDAY_HOUR))
         jq.run_daily(job_content_saturday, time=dtime(hour=_SAT_HOUR))
+        jq.run_daily(job_price_snapshot, time=dtime(hour=_PRICE_SNAPSHOT_HOUR, minute=50))
         log.info("Снимок: Вс 18:00. Черновики: будни %02d:00 дайджест, "
                  "%02d:00 рубрика дня, Сб %02d:00 манифест.",
                  _MORNING_HOUR, _MIDDAY_HOUR, _SAT_HOUR)

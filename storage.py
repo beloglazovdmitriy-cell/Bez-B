@@ -200,6 +200,72 @@ def reactions_for(post_ids: list, uid: str) -> dict:
     return out
 
 
+# ──────────────── своя история цен (ежедневный снимок) ────────────────
+
+def _ensure_price_history(conn):
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS price_history ("
+        "ticker TEXT, date TEXT, close REAL, PRIMARY KEY(ticker, date))")
+
+
+def save_price(ticker: str, date: str, close: float) -> None:
+    tk = (ticker or "").strip().upper()
+    if not tk or close is None:
+        return
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_price_history(conn)
+            conn.execute(
+                "INSERT INTO price_history (ticker, date, close) VALUES (?, ?, ?) "
+                "ON CONFLICT(ticker, date) DO UPDATE SET close=excluded.close",
+                (tk, date, float(close)))
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def get_price_history(ticker: str, since: str | None = None) -> dict:
+    """Своя дневная история: {YYYY-MM-DD: close} для тикера."""
+    tk = (ticker or "").strip().upper()
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_price_history(conn)
+            if since:
+                rows = conn.execute(
+                    "SELECT date, close FROM price_history WHERE ticker=? AND date>=? "
+                    "ORDER BY date", (tk, since)).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT date, close FROM price_history WHERE ticker=? ORDER BY date",
+                    (tk,)).fetchall()
+            return {r[0]: r[1] for r in rows}
+        finally:
+            conn.close()
+
+
+def all_held_tickers() -> list:
+    """Уникальные тикеры из сделок всех портфелей — для снимка цен."""
+    with _lock:
+        conn = _connect()
+        try:
+            rows = conn.execute("SELECT doc FROM portfolios").fetchall()
+        finally:
+            conn.close()
+    seen = set()
+    for (doc,) in rows:
+        try:
+            d = json.loads(doc)
+        except Exception:
+            continue
+        for t in d.get("trades", []):
+            tk = (t.get("ticker") or "").strip().upper()
+            if tk:
+                seen.add(tk)
+    return sorted(seen)
+
+
 # ──────────────── премиум-подписка (оплата) ────────────────
 
 def _ensure_premium(conn):
