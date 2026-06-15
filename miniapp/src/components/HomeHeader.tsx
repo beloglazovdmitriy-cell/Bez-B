@@ -1,8 +1,5 @@
 import { useEffect, useState } from "react";
 import { apiHome, type Home } from "../data";
-import DcaStreak from "./DcaStreak";
-import Onboarding from "./Onboarding";
-import PredictCard from "./PredictCard";
 
 const SIDE_LABEL = { buy: "купил", sell: "продал" } as const;
 
@@ -47,11 +44,9 @@ export default function HomeHeader() {
 
   const m = h?.mood;
   const t = h?.bezbToday;
+  if (!m && !t && !h?.digest) return null;   // дневная сводка пуста — ничего не показываем
   return (
     <div className="home">
-      <PredictCard />
-      <DcaStreak />
-      <Onboarding />
       {m && (
         <div className="card home-mood">
           <Gauge value={m.value} />

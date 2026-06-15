@@ -5,6 +5,7 @@ import {
 import ContentStudio from "../components/ContentStudio";
 import QaSheet from "../components/QaSheet";
 import QuizSheet from "../components/QuizSheet";
+import Onboarding from "../components/Onboarding";
 import { apiSubscribe, apiUnsubscribe, apiPayInvoice, apiPayConfig, payCloudPayments, apiReferral } from "../data";
 import { mockUser } from "../mock";
 
@@ -122,6 +123,9 @@ export default function ProfileScreen({ user }: { user: User }) {
           </div>
         </div>
       </div>
+
+      {/* мини-курс (онбординг) — самоскрывается после прохождения */}
+      <Onboarding />
 
       {/* уведомления о сделках Без Б (премиум) */}
       <div className="card sub-card" onClick={toggleSub}>

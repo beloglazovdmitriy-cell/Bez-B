@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import PositionsList from "../components/PositionsList";
+import PredictCard from "../components/PredictCard";
+import DcaStreak from "../components/DcaStreak";
 import TradeSheet, { type Action } from "../components/TradeSheet";
 import {
   apiFantasy, apiFantasyJoin, apiFantasyLeaderboard, apiProfileLevel, apiFantasyMentor,
@@ -134,6 +136,9 @@ export default function GameScreen() {
           )}
         </div>
       )}
+
+      <PredictCard />
+      <DcaStreak />
 
       {!f ? (
         <div className="muted-note">Загружаю…</div>
