@@ -9,6 +9,7 @@ import ChartScreen from "./screens/ChartScreen";
 import JournalScreen from "./screens/JournalScreen";
 import CalcScreen from "./screens/CalcScreen";
 import TradeScreen from "./screens/TradeScreen";
+import GameScreen from "./screens/GameScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import { useAppData } from "./useAppData";
 import type { Pf } from "./data";
@@ -40,6 +41,7 @@ export default function App() {
       {showSwitch && <PortfolioSwitcher pf={pf} onChange={setPf} />}
 
       {tab === "feed" && <FeedScreen />}
+      {tab === "game" && <GameScreen />}
       {tab === "portfolio" && <PortfolioScreen summary={data.summary} pf={pf} onReload={data.reload} />}
       {tab === "chart" && <ChartScreen history={data.history} bench={data.bench} />}
       {tab === "journal" && <JournalScreen journal={data.journal} user={data.user} pf={pf} />}

@@ -104,6 +104,12 @@ export const apiFantasy = () => reqJSON<Fantasy>("/api/fantasy");
 export const apiFantasyJoin = () => reqJSON<Fantasy>("/api/fantasy/join", "POST");
 export const apiFantasyLeaderboard = () => reqJSON<FantasyLeader[]>("/api/fantasy/leaderboard");
 
+export interface PlayerLevel {
+  xp: number; level: number; title: string; curXp: number; nextXp: number | null; anon?: boolean;
+}
+export const apiProfileLevel = () => reqJSON<PlayerLevel>("/api/profile/level");
+export const apiFantasyMentor = () => reqJSON<{ text: string }>("/api/fantasy/mentor", "POST");
+
 // ── квиз «Детектор буллшита» ──
 export interface QuizStats { score: number; streak: number; best: number; answered: number[]; }
 export interface QuizNext {

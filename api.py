@@ -1042,6 +1042,77 @@ def fantasy_join(x_init_data: str | None = Header(default=None)):
     return _fantasy_status(uid)
 
 
+_LEVELS = [
+    (0, "Новичок"), (60, "Ученик"), (160, "Дисциплинированный"),
+    (320, "Расчётливый"), (560, "Хладнокровный"), (900, "Стратег"),
+    (1400, "Мастер"), (2100, "Гуру без Б"),
+]
+
+
+def _player_level(uid) -> dict:
+    """XP/уровень/титул из всех активностей (агрегат, без отдельной записи XP)."""
+    if not uid:
+        return {"xp": 0, "level": 1, "title": _LEVELS[0][1], "curXp": 0,
+                "nextXp": _LEVELS[1][0], "anon": True}
+    u = f"u{uid}"
+    dca = storage.dca_get(u)
+    quiz = storage.quiz_get(u)
+    pred = storage.pred_my_stats(u)
+    onb = storage.onboarding_get(u)
+    # сделки в учебном портфеле
+    storage.use_uid(f"f{uid}")
+    try:
+        ftrades = sum(1 for t in portfolio.get_operations()
+                      if (t.get("type") or t.get("side")) in ("buy", "sell"))
+    except Exception:
+        ftrades = 0
+    xp = (dca.get("total", 0) * 15 + quiz.get("score", 0) * 10
+          + pred.get("points", 0) * 20 + onb.get("done", 0) * 25 + ftrades * 10)
+    lvl = 1
+    title = _LEVELS[0][1]
+    cur_thr = 0
+    nxt = None
+    for i, (thr, name) in enumerate(_LEVELS):
+        if xp >= thr:
+            lvl, title, cur_thr = i + 1, name, thr
+            nxt = _LEVELS[i + 1][0] if i + 1 < len(_LEVELS) else None
+    return {"xp": xp, "level": lvl, "title": title, "curXp": cur_thr, "nextXp": nxt}
+
+
+@app.get("/api/profile/level")
+def profile_level(x_init_data: str | None = Header(default=None)):
+    return _player_level(_resolve_user(x_init_data).get("id"))
+
+
+@app.post("/api/fantasy/mentor")
+def fantasy_mentor(x_init_data: str | None = Header(default=None)):
+    """AI-наставник разбирает учебный портфель игрока."""
+    uid = _resolve_user(x_init_data).get("id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Откройте приложение из Telegram")
+    _ai_or_503()
+    storage.use_uid(f"f{uid}")
+    s = portfolio.summary()
+    if s["total_value_usdt"] <= 0:
+        raise HTTPException(status_code=400, detail="Сначала вступи в игру и собери портфель")
+    data = _ai_portfolio_data("me")
+    data["label"] = "учебный портфель игрока"
+    # последние решения
+    lines = []
+    for t in portfolio.get_operations()[:6]:
+        tt = t.get("type") or t.get("side")
+        if tt not in ("buy", "sell"):
+            continue
+        price = t.get("price_usdt", t.get("price_usd")) or 0
+        amount = t.get("amount_usdt", t["qty"] * price)
+        lines.append(f"{'Купил' if tt == 'buy' else 'Продал'} {t['ticker']} на ${round(amount)}")
+    try:
+        text = ai.mentor(data, "\n".join(lines))
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Наставник недоступен: {e}")
+    return {"text": text}
+
+
 @app.get("/api/fantasy/leaderboard")
 def fantasy_leaderboard():
     out = []
