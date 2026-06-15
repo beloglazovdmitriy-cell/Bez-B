@@ -132,10 +132,26 @@ def _ctx(p: str, init_data: str | None, write: bool = False) -> str:
 
 # ───────────────────────── эндпойнты ─────────────────────────
 
+def _premium_price(uid) -> tuple[int, str]:
+    """Цена премиума для пользователя: (рубли, тариф 'eb'|'reg').
+    Early-bird (490 ₽) — для уже-early-bird и пока есть свободные слоты."""
+    fid = f"u{uid}" if uid else ""
+    if uid and storage.is_early_bird(fid):
+        return config.PREMIUM_EARLYBIRD_RUB, "eb"
+    if storage.early_bird_count() < config.PREMIUM_EARLYBIRD_LIMIT:
+        return config.PREMIUM_EARLYBIRD_RUB, "eb"
+    return config.PREMIUM_PRICE_RUB, "reg"
+
+
 @app.get("/api/me")
 def me(x_init_data: str | None = Header(default=None)):
     u = _resolve_user(x_init_data)
-    u["isSubscribed"] = storage.is_subscriber(u.get("id"))
+    uid = u.get("id")
+    u["isSubscribed"] = storage.is_subscriber(uid)
+    price, tier = _premium_price(uid)
+    u["premiumPrice"] = price
+    u["premiumEarlyBird"] = tier == "eb"
+    u["earlyBirdLeft"] = max(0, config.PREMIUM_EARLYBIRD_LIMIT - storage.early_bird_count())
     return u
 
 
@@ -780,14 +796,16 @@ def pay_invoice(x_init_data: str | None = Header(default=None)):
     if not config.PAYMENT_PROVIDER_TOKEN:
         raise HTTPException(status_code=503, detail="Оплата скоро будет подключена")
     import requests
-    amount = config.PREMIUM_PRICE_RUB * 100  # в копейках
+    price_rub, tier = _premium_price(uid)
+    amount = price_rub * 100  # в копейках
+    title = config.PREMIUM_TITLE + (" · early-bird" if tier == "eb" else "")
     body = {
-        "title": config.PREMIUM_TITLE,
+        "title": title,
         "description": "Премиум-доступ «Без Б»: расширенные AI-функции и приоритет.",
-        "payload": f"premium:u{uid}",
+        "payload": f"premium:u{uid}:{tier}",
         "provider_token": config.PAYMENT_PROVIDER_TOKEN,
         "currency": "RUB",
-        "prices": [{"label": config.PREMIUM_TITLE, "amount": amount}],
+        "prices": [{"label": title, "amount": amount}],
     }
     r = requests.post(
         f"https://api.telegram.org/bot{config.BOT_TOKEN}/createInvoiceLink",

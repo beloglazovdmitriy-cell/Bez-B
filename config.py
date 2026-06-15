@@ -46,9 +46,12 @@ BENCHMARK_TICKERS = [("SPY", "S&P 500"), ("BTC", "Bitcoin"), ("GLD", "Золот
 # ── Оплата премиума (Telegram Payments через провайдера, напр. Сбербанк) ──
 # Provider token из @BotFather → Bot Settings → Payments. Пусто = оплата выключена.
 PAYMENT_PROVIDER_TOKEN = os.getenv("PAYMENT_PROVIDER_TOKEN", "")
-PREMIUM_PRICE_RUB = int(os.getenv("PREMIUM_PRICE_RUB", "990"))   # цена за период, ₽
+PREMIUM_PRICE_RUB = int(os.getenv("PREMIUM_PRICE_RUB", "990"))   # регулярная цена, ₽
 PREMIUM_DAYS = int(os.getenv("PREMIUM_DAYS", "30"))             # длительность доступа
 PREMIUM_TITLE = os.getenv("PREMIUM_TITLE", "Премиум «Без Б» на 30 дней")
+# Early-bird: первым подписчикам — сниженная цена, закрепляется за ними навсегда.
+PREMIUM_EARLYBIRD_RUB = int(os.getenv("PREMIUM_EARLYBIRD_RUB", "490"))
+PREMIUM_EARLYBIRD_LIMIT = int(os.getenv("PREMIUM_EARLYBIRD_LIMIT", "100"))
 
 # Файл с данными портфеля
 DATA_FILE = os.path.join(os.path.dirname(__file__), "portfolio_data.json")

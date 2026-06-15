@@ -1171,7 +1171,11 @@ async def on_successful_payment(update: Update, context: ContextTypes.DEFAULT_TY
     """Платёж прошёл — выдать премиум по payload «premium:u<id>»."""
     sp = update.message.successful_payment
     payload = sp.invoice_payload or ""
-    uid = payload.split(":", 1)[1] if ":" in payload else f"u{update.effective_user.id}"
+    parts = payload.split(":")            # premium:u<id>:<tier>
+    uid = parts[1] if len(parts) > 1 else f"u{update.effective_user.id}"
+    tier = parts[2] if len(parts) > 2 else "reg"
+    if tier == "eb":
+        storage.add_early_bird(uid)       # закрепить early-bird за юзером навсегда
     until = storage.grant_premium(uid, config.PREMIUM_DAYS)
     when = datetime.fromtimestamp(until).strftime("%d.%m.%Y")
     await update.message.reply_text(

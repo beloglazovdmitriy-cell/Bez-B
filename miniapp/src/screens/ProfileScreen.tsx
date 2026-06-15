@@ -114,7 +114,7 @@ export default function ProfileScreen({ user }: { user: User }) {
       <div className="card premium">
         <div className="premium-head">
           <span className="premium-title"><IconCrown size={20} /> Премиум <Brand size={16} /></span>
-          <span className="premium-price">990 ₽/мес</span>
+          <span className="premium-price">{(u as any).premiumPrice ?? 990} ₽/мес</span>
         </div>
         <div className="premium-list">
           {PREMIUM.map((f, i) => (
@@ -133,9 +133,14 @@ export default function ProfileScreen({ user }: { user: User }) {
               : ""}
           </div>
         ) : (
-          <button className="cta" style={{ marginTop: 14 }} onClick={buyPremium}>
-            <IconCrown size={18} /> Оформить премиум · 990 ₽
-          </button>
+          <>
+            {(u as any).premiumEarlyBird && (
+              <div className="eb-note">🐦 Early-bird: {(u as any).premiumPrice} ₽ навсегда · осталось {(u as any).earlyBirdLeft} мест</div>
+            )}
+            <button className="cta" style={{ marginTop: 12 }} onClick={buyPremium}>
+              <IconCrown size={18} /> Оформить премиум · {(u as any).premiumPrice ?? 990} ₽
+            </button>
+          </>
         )}
         {payNote && <div className="muted-note" style={{ marginTop: 10 }}>{payNote}</div>}
       </div>

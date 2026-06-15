@@ -18,7 +18,7 @@ const ADMIN_ID = Number(import.meta.env.VITE_ADMIN_ID ?? 503720103);
 
 function fallbackUser() {
   const u = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
-  if (u) return { name: u.first_name || "Гость", isAdmin: u.id === ADMIN_ID, isPremium: false, isSubscribed: false, premiumUntil: 0 };
+  if (u) return { name: u.first_name || "Гость", isAdmin: u.id === ADMIN_ID, isPremium: false, isSubscribed: false, premiumUntil: 0, premiumPrice: 990, premiumEarlyBird: false, earlyBirdLeft: 100 };
   return mockUser;
 }
 

@@ -644,6 +644,47 @@ def is_premium(uid: str) -> bool:
     return premium_until(uid) > int(time.time())
 
 
+def _ensure_earlybird(conn):
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS early_bird (uid TEXT PRIMARY KEY, ts INTEGER)")
+
+
+def add_early_bird(uid: str) -> None:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_earlybird(conn)
+            conn.execute("INSERT OR IGNORE INTO early_bird (uid, ts) VALUES (?, ?)",
+                         (uid, int(time.time())))
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def is_early_bird(uid: str) -> bool:
+    if not uid:
+        return False
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_earlybird(conn)
+            return bool(conn.execute(
+                "SELECT 1 FROM early_bird WHERE uid=?", (uid,)).fetchone())
+        finally:
+            conn.close()
+
+
+def early_bird_count() -> int:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_earlybird(conn)
+            r = conn.execute("SELECT COUNT(*) FROM early_bird").fetchone()
+            return r[0] if r else 0
+        finally:
+            conn.close()
+
+
 # ──────────────── онбординг (5 уроков, по одному в день) ────────────────
 
 _ONBOARDING_TOTAL = 5
