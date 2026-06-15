@@ -18,6 +18,12 @@ function tgOpen(url: string) {
   if (tg?.openTelegramLink) tg.openTelegramLink(url);
   else window.open(url, "_blank");
 }
+function openExt(url: string) {
+  const tg = (window as any).Telegram?.WebApp;
+  if (tg?.openLink) tg.openLink(url);
+  else window.open(url, "_blank");
+}
+const DOC_BASE = (typeof location !== "undefined" ? location.origin : "") + "/landing";
 function openChannel() {
   tgOpen(`https://t.me/${CHANNEL}`);
 }
@@ -43,8 +49,10 @@ export default function ProfileScreen({ user }: { user: User }) {
   const [subscribed, setSubscribed] = useState(!!(u as any).isSubscribed);
   const [subBusy, setSubBusy] = useState(false);
   const [payNote, setPayNote] = useState("");
+  const [consent, setConsent] = useState(false);
 
   async function buyPremium() {
+    if (!consent) { setPayNote("Поставь галочку согласия, чтобы продолжить."); return; }
     setPayNote("");
     const tg = (window as any).Telegram?.WebApp;
     try {
@@ -146,7 +154,15 @@ export default function ProfileScreen({ user }: { user: User }) {
             {(u as any).premiumEarlyBird && (
               <div className="eb-note">🐦 Early-bird: {(u as any).premiumPrice} ₽ навсегда · осталось {(u as any).earlyBirdLeft} мест</div>
             )}
-            <button className="cta" style={{ marginTop: 12 }} onClick={buyPremium}>
+            <label className="consent" style={{ marginTop: 14 }}>
+              <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+              <span>Принимаю условия{" "}
+                <a onClick={(e) => { e.preventDefault(); openExt(`${DOC_BASE}/offer.html`); }}>оферты</a>{" "}
+                и даю{" "}
+                <a onClick={(e) => { e.preventDefault(); openExt(`${DOC_BASE}/privacy.html`); }}>
+                  согласие на обработку персональных данных</a> (152-ФЗ).</span>
+            </label>
+            <button className="cta" style={{ marginTop: 12 }} onClick={buyPremium} disabled={!consent}>
               <IconCrown size={18} /> Оформить премиум · {(u as any).premiumPrice ?? 990} ₽
             </button>
           </>
