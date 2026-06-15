@@ -53,5 +53,10 @@ PREMIUM_TITLE = os.getenv("PREMIUM_TITLE", "Премиум «Без Б» на 30
 PREMIUM_EARLYBIRD_RUB = int(os.getenv("PREMIUM_EARLYBIRD_RUB", "490"))
 PREMIUM_EARLYBIRD_LIMIT = int(os.getenv("PREMIUM_EARLYBIRD_LIMIT", "100"))
 
+# CloudPayments: Public ID (можно во фронт) и пароль для API (только сервер, для
+# проверки подписи webhook). Пусто = провайдер выключен.
+CLOUDPAYMENTS_PUBLIC_ID = os.getenv("CLOUDPAYMENTS_PUBLIC_ID", "")
+CLOUDPAYMENTS_API_SECRET = os.getenv("CLOUDPAYMENTS_API_SECRET", "")
+
 # Файл с данными портфеля
 DATA_FILE = os.path.join(os.path.dirname(__file__), "portfolio_data.json")

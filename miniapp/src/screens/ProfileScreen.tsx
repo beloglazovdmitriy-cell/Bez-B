@@ -5,7 +5,7 @@ import {
 import ContentStudio from "../components/ContentStudio";
 import QaSheet from "../components/QaSheet";
 import QuizSheet from "../components/QuizSheet";
-import { apiSubscribe, apiUnsubscribe, apiPayInvoice } from "../data";
+import { apiSubscribe, apiUnsubscribe, apiPayInvoice, apiPayConfig, payCloudPayments } from "../data";
 import { mockUser } from "../mock";
 
 type User = typeof mockUser;
@@ -48,7 +48,16 @@ export default function ProfileScreen({ user }: { user: User }) {
     setPayNote("");
     const tg = (window as any).Telegram?.WebApp;
     try {
-      const { link } = await apiPayInvoice();
+      const cfg = await apiPayConfig();
+      if (cfg.provider === "cloudpayments") {
+        await payCloudPayments(cfg, {
+          onSuccess: () => setPayNote("Оплачено ✓ Премиум активируется. Переоткрой приложение."),
+          onFail: () => setPayNote("Платёж не прошёл. Попробуй ещё раз."),
+        });
+        return;
+      }
+      if (cfg.provider === "none") { setPayNote("Оплата скоро будет подключена."); return; }
+      const { link } = await apiPayInvoice();   // telegram-инвойс
       if (tg?.openInvoice) {
         tg.openInvoice(link, (status: string) => {
           if (status === "paid") setPayNote("Оплачено ✓ Премиум активируется. Переоткрой приложение.");

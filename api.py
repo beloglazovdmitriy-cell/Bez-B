@@ -18,7 +18,7 @@ import os
 from datetime import datetime
 from urllib.parse import parse_qsl
 
-from fastapi import FastAPI, File, Header, HTTPException, UploadFile
+from fastapi import FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -784,6 +784,57 @@ def dca_checkin(x_init_data: str | None = Header(default=None)):
     if not uid:
         raise HTTPException(status_code=401, detail="Откройте приложение из Telegram")
     return storage.dca_checkin(f"u{uid}")
+
+
+@app.get("/api/pay/config")
+def pay_config(x_init_data: str | None = Header(default=None)):
+    """Что и как платить: провайдер, цена/тариф, publicId для виджета CloudPayments."""
+    uid = _resolve_user(x_init_data).get("id")
+    price, tier = _premium_price(uid)
+    if config.CLOUDPAYMENTS_PUBLIC_ID:
+        provider = "cloudpayments"
+    elif config.PAYMENT_PROVIDER_TOKEN:
+        provider = "telegram"
+    else:
+        provider = "none"
+    return {"provider": provider, "publicId": config.CLOUDPAYMENTS_PUBLIC_ID,
+            "price": price, "tier": tier, "days": config.PREMIUM_DAYS,
+            "title": config.PREMIUM_TITLE, "accountId": f"u{uid}" if uid else "",
+            "invoiceId": f"premium:u{uid}:{tier}" if uid else ""}
+
+
+@app.post("/api/cloudpayments/pay")
+async def cloudpayments_pay(request: Request,
+                           content_hmac: str | None = Header(default=None, alias="Content-HMAC"),
+                           x_content_hmac: str | None = Header(default=None, alias="X-Content-HMAC")):
+    """Webhook CloudPayments (уведомление Pay). Проверяем подпись и выдаём премиум.
+    Отвечаем {code:0} = принято. Источник истины об оплате — этот вызов."""
+    raw = await request.body()
+    secret = config.CLOUDPAYMENTS_API_SECRET
+    if secret:
+        import base64
+        digest = hmac.new(secret.encode(), raw, hashlib.sha256).digest()
+        expected = base64.b64encode(digest).decode()
+        got = content_hmac or x_content_hmac or ""
+        if not hmac.compare_digest(expected, got):
+            return {"code": 13}  # подпись неверна
+    form = dict(parse_qsl(raw.decode("utf-8", "ignore")))
+    account = form.get("AccountId", "")           # наш uid вида u<id>
+    invoice = form.get("InvoiceId", "")           # premium:u<id>:<tier>
+    tier = invoice.split(":")[2] if invoice.count(":") >= 2 else "reg"
+    if account.startswith("u"):
+        if tier == "eb":
+            storage.add_early_bird(account)
+        until = storage.grant_premium(account, config.PREMIUM_DAYS)
+        try:
+            chat_id = int(account.lstrip("u"))
+            from datetime import datetime as _dt
+            _tg_send(chat_id, f"✅ Премиум активирован до "
+                     f"{_dt.fromtimestamp(until).strftime('%d.%m.%Y')}! Спасибо за поддержку «Без Б».")
+            _tg_send(config.ADMIN_ID, f"💰 Оплата премиума (CloudPayments): {account}, тариф {tier}.")
+        except Exception:
+            pass
+    return {"code": 0}
 
 
 @app.post("/api/pay/invoice")

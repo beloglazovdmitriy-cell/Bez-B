@@ -133,8 +133,49 @@ export const apiPredictVote = (choice: "up" | "down") =>
     "/api/predict/vote", { choice });
 export const apiPredictLeaderboard = () => reqJSON<PredLeader[]>("/api/predict/leaderboard");
 
-// ── оплата премиума (Telegram-инвойс через провайдера) ──
+// ── оплата премиума ──
 export const apiPayInvoice = () => postJSONr<{ link: string }>("/api/pay/invoice", {});
+
+export interface PayConfig {
+  provider: "cloudpayments" | "telegram" | "none";
+  publicId: string; price: number; tier: string; days: number;
+  title: string; accountId: string; invoiceId: string;
+}
+export const apiPayConfig = () => reqJSON<PayConfig>("/api/pay/config");
+
+// Загрузить SDK CloudPayments (один раз) и открыть виджет оплаты.
+let _cpLoaded: Promise<void> | null = null;
+function loadCloudPayments(): Promise<void> {
+  if ((window as any).cp) return Promise.resolve();
+  if (_cpLoaded) return _cpLoaded;
+  _cpLoaded = new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = "https://widget.cloudpayments.ru/bundles/cloudpayments.js";
+    s.onload = () => res();
+    s.onerror = () => rej(new Error("Не удалось загрузить форму оплаты"));
+    document.head.appendChild(s);
+  });
+  return _cpLoaded;
+}
+
+export async function payCloudPayments(
+  cfg: PayConfig, cb: { onSuccess?: () => void; onFail?: (r: string) => void } = {},
+): Promise<void> {
+  await loadCloudPayments();
+  const widget = new (window as any).cp.CloudPayments();
+  widget.pay("charge", {
+    publicId: cfg.publicId,
+    description: cfg.title,
+    amount: cfg.price,
+    currency: "RUB",
+    accountId: cfg.accountId,
+    invoiceId: cfg.invoiceId,
+    skin: "mini",
+  }, {
+    onSuccess: () => cb.onSuccess?.(),
+    onFail: (reason: string) => cb.onFail?.(reason),
+  });
+}
 
 // ── подписка на мгновенные пуши о сделках Без Б ──
 export const apiSubscribe = () => reqJSON<{ ok: boolean; isSubscribed: boolean }>("/api/subscribe", "POST");
