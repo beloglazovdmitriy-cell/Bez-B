@@ -58,5 +58,8 @@ PREMIUM_EARLYBIRD_LIMIT = int(os.getenv("PREMIUM_EARLYBIRD_LIMIT", "100"))
 CLOUDPAYMENTS_PUBLIC_ID = os.getenv("CLOUDPAYMENTS_PUBLIC_ID", "")
 CLOUDPAYMENTS_API_SECRET = os.getenv("CLOUDPAYMENTS_API_SECRET", "")
 
+# Реферальная программа: сколько дней премиума получает пригласивший за друга.
+REFERRAL_PREMIUM_DAYS = int(os.getenv("REFERRAL_PREMIUM_DAYS", "3"))
+
 # Файл с данными портфеля
 DATA_FILE = os.path.join(os.path.dirname(__file__), "portfolio_data.json")

@@ -1068,9 +1068,10 @@ def _player_level(uid) -> dict:
         ftrades = 0
     events = storage.event_answered_count(u)
     login = storage.streak_get(u)
+    refs = storage.referral_count(u)
     xp = (dca.get("total", 0) * 15 + quiz.get("score", 0) * 10
           + pred.get("points", 0) * 20 + onb.get("done", 0) * 25 + ftrades * 10
-          + events * 8 + login.get("best", 0) * 5)
+          + events * 8 + login.get("best", 0) * 5 + refs * 40)
     lvl = 1
     title = _LEVELS[0][1]
     cur_thr = 0
@@ -1085,6 +1086,45 @@ def _player_level(uid) -> dict:
 @app.get("/api/profile/level")
 def profile_level(x_init_data: str | None = Header(default=None)):
     return _player_level(_resolve_user(x_init_data).get("id"))
+
+
+@app.get("/api/referral")
+def referral(x_init_data: str | None = Header(default=None)):
+    uid = _resolve_user(x_init_data).get("id")
+    link = f"https://t.me/{config.BOT_USERNAME}?start=ref_{uid}" if uid else ""
+    return {"link": link, "count": storage.referral_count(f"u{uid}") if uid else 0,
+            "days": config.REFERRAL_PREMIUM_DAYS}
+
+
+@app.get("/api/profile/badges")
+def profile_badges(x_init_data: str | None = Header(default=None)):
+    uid = _resolve_user(x_init_data).get("id")
+    if not uid:
+        return []
+    u = f"u{uid}"
+    dca = storage.dca_get(u)
+    quiz = storage.quiz_get(u)
+    pred = storage.pred_my_stats(u)
+    onb = storage.onboarding_get(u)
+    login = storage.streak_get(u)
+    refs = storage.referral_count(u)
+    storage.use_uid(f"f{uid}")
+    try:
+        ftrades = sum(1 for t in portfolio.get_operations()
+                      if (t.get("type") or t.get("side")) in ("buy", "sell"))
+    except Exception:
+        ftrades = 0
+    B = [
+        ("🎓", "Курс пройден", onb.get("done", 0) >= 5),
+        ("🔥", "DCA 3 подряд", dca.get("best", 0) >= 3),
+        ("🏅", "DCA полгода", dca.get("best", 0) >= 13),
+        ("🚩", "Детектор буллшита", quiz.get("best", 0) >= 12),
+        ("🔮", "Аналитик", pred.get("points", 0) >= 3),
+        ("🎮", "Инвестор (10 сделок)", ftrades >= 10),
+        ("📅", "7 дней входов", login.get("best", 0) >= 7),
+        ("👥", "Амбассадор (3 друга)", refs >= 3),
+    ]
+    return [{"icon": ic, "label": lb, "earned": bool(e)} for ic, lb, e in B]
 
 
 def _today_num() -> int:

@@ -3,9 +3,9 @@ import PositionsList from "../components/PositionsList";
 import TradeSheet, { type Action } from "../components/TradeSheet";
 import {
   apiFantasy, apiFantasyJoin, apiFantasyLeaderboard, apiProfileLevel, apiFantasyMentor,
-  apiStreakPing, apiEventToday, apiEventChoose,
+  apiStreakPing, apiEventToday, apiEventChoose, apiReferral, apiBadges,
   loadSummary, type Fantasy, type FantasyLeader, type PlayerLevel, type Summary,
-  type Streak, type DailyEvent,
+  type Streak, type DailyEvent, type Referral, type Badge,
 } from "../data";
 
 const m = (n: number) => Math.round(n).toLocaleString("ru-RU").replace(/,/g, " ");
@@ -21,6 +21,23 @@ export default function GameScreen() {
   const [mentorBusy, setMentorBusy] = useState(false);
   const [streak, setStreak] = useState<Streak | null>(null);
   const [ev, setEv] = useState<DailyEvent | null>(null);
+  const [ref, setRef] = useState<Referral | null>(null);
+  const [badges, setBadges] = useState<Badge[] | null>(null);
+
+  function shareBrag() {
+    if (!ref) return;
+    const r = f?.returnPct ?? 0;
+    const text = f?.joined
+      ? `Я в игре «Инвестор с нуля» от «Без Б» иду ${r >= 0 ? "+" : ""}${r}%${f?.rank ? ` (место #${f.rank})` : ""}. Слабо обогнать? 🏆`
+      : "Играю в «Инвестор с нуля» от «Без Б» — учусь инвестировать без буллшита. Залетай 🚀";
+    const url = `https://t.me/share/url?url=${encodeURIComponent(ref.link)}&text=${encodeURIComponent(text)}`;
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg?.openTelegramLink) tg.openTelegramLink(url); else window.open(url, "_blank");
+  }
+  async function openBadges() {
+    setBadges([]);
+    try { setBadges(await apiBadges()); } catch { setBadges([]); }
+  }
 
   function reload() {
     apiFantasy().then(setF).catch(() => {});
@@ -31,6 +48,7 @@ export default function GameScreen() {
     reload();
     apiStreakPing().then(setStreak).catch(() => {});
     apiEventToday().then(setEv).catch(() => {});
+    apiReferral().then(setRef).catch(() => {});
   }, []);
 
   async function chooseEvent(key: string) {
@@ -80,6 +98,7 @@ export default function GameScreen() {
             )}
           </div>
           <div className="lvl-bar"><div className="lvl-fill" style={{ width: `${pct}%` }} /></div>
+          <button className="link-btn" style={{ marginTop: 8 }} onClick={openBadges}>🎖 Мои достижения</button>
         </div>
       )}
 
@@ -165,6 +184,9 @@ export default function GameScreen() {
             </button>
             <button className="cta cta-ghost" onClick={openBoard}>🏆 Рейтинг</button>
           </div>
+          <button className="cta cta-ghost" style={{ marginTop: 10, width: "100%" }} onClick={shareBrag}>
+            📣 Похвастаться · обгони меня
+          </button>
 
           <div className="disclaimer">Учебная игра на виртуальные деньги. Не ИИР.</div>
         </>
@@ -184,6 +206,27 @@ export default function GameScreen() {
               {mentorBusy && !mentor ? "Разбираю твои решения…" : mentor}
             </div>
             <button className="sheet-cancel" onClick={() => setMentor(null)}>Закрыть</button>
+          </div>
+        </div>
+      )}
+
+      {badges && (
+        <div className="sheet-overlay" onClick={() => setBadges(null)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-grip" />
+            <div className="sheet-title">🎖 Достижения{ref && ref.count > 0 ? ` · 👥 ${ref.count}` : ""}</div>
+            <div className="badge-grid">
+              {badges.map((b, i) => (
+                <div key={i} className={"badge-cell" + (b.earned ? " earned" : "")}>
+                  <span className="badge-ic">{b.icon}</span>
+                  <span className="badge-lbl">{b.label}</span>
+                </div>
+              ))}
+            </div>
+            <button className="cta cta-ghost" style={{ marginTop: 14 }} onClick={shareBrag}>
+              📣 Позвать друга (+{ref?.days ?? 3} дня премиума за каждого)
+            </button>
+            <button className="sheet-cancel" onClick={() => setBadges(null)}>Закрыть</button>
           </div>
         </div>
       )}

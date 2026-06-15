@@ -375,6 +375,25 @@ WELCOME = (
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
+    # реферальный диплинк: /start ref_<id>
+    if context.args and context.args[0].startswith("ref_"):
+        try:
+            ref_id = int(context.args[0][4:])
+            referee = f"u{update.effective_user.id}"
+            referrer = f"u{ref_id}"
+            if storage.add_referral(referee, referrer):
+                until = storage.grant_premium(referrer, config.REFERRAL_PREMIUM_DAYS)
+                cnt = storage.referral_count(referrer)
+                when = datetime.fromtimestamp(until).strftime("%d.%m.%Y")
+                try:
+                    await context.bot.send_message(
+                        ref_id,
+                        f"🎉 По твоей ссылке пришёл друг! +{config.REFERRAL_PREMIUM_DAYS} дня "
+                        f"премиума (до {when}). Всего друзей: {cnt}.")
+                except Exception:
+                    pass
+        except Exception:
+            log.exception("referral start failed")
     is_admin = _is_admin(update.effective_user.id)
     await update.message.reply_text(
         WELCOME, parse_mode=ParseMode.MARKDOWN, reply_markup=kb_reply())

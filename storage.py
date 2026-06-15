@@ -353,6 +353,45 @@ def quiz_reset_answered(uid: str) -> None:
             conn.close()
 
 
+# ──────────────── реферальная программа ────────────────
+
+def _ensure_referrals(conn):
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS referrals ("
+        "referee TEXT PRIMARY KEY, referrer TEXT, ts INTEGER)")
+
+
+def add_referral(referee: str, referrer: str) -> bool:
+    """Записать, что referee пришёл по ссылке referrer. True — если это новый
+    реферал (referee ещё не приглашён и не сам себя)."""
+    if not referee or not referrer or referee == referrer:
+        return False
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_referrals(conn)
+            ex = conn.execute("SELECT 1 FROM referrals WHERE referee=?", (referee,)).fetchone()
+            if ex:
+                return False
+            conn.execute("INSERT INTO referrals (referee, referrer, ts) VALUES (?,?,?)",
+                         (referee, referrer, int(time.time())))
+            conn.commit()
+            return True
+        finally:
+            conn.close()
+
+
+def referral_count(uid: str) -> int:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_referrals(conn)
+            r = conn.execute("SELECT COUNT(*) FROM referrals WHERE referrer=?", (uid,)).fetchone()
+            return r[0] if r else 0
+        finally:
+            conn.close()
+
+
 # ──────────────── событие дня (игра) ────────────────
 
 def _ensure_event(conn):

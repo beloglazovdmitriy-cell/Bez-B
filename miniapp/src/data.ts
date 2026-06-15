@@ -123,6 +123,12 @@ export const apiEventChoose = (choice: string) =>
 export interface Streak { streak: number; best: number; today?: boolean; }
 export const apiStreakPing = () => postJSONr<Streak>("/api/streak/ping", {});
 
+// ── реферал + бейджи ──
+export interface Referral { link: string; count: number; days: number; }
+export const apiReferral = () => reqJSON<Referral>("/api/referral");
+export interface Badge { icon: string; label: string; earned: boolean; }
+export const apiBadges = () => reqJSON<Badge[]>("/api/profile/badges");
+
 // ── квиз «Детектор буллшита» ──
 export interface QuizStats { score: number; streak: number; best: number; answered: number[]; }
 export interface QuizNext {

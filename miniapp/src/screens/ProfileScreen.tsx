@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   IconCrown, IconLock, IconCheck, IconShare, IconChannel, IconChevron, IconAI, Brand,
 } from "../components/Icons";
 import ContentStudio from "../components/ContentStudio";
 import QaSheet from "../components/QaSheet";
 import QuizSheet from "../components/QuizSheet";
-import { apiSubscribe, apiUnsubscribe, apiPayInvoice, apiPayConfig, payCloudPayments } from "../data";
+import { apiSubscribe, apiUnsubscribe, apiPayInvoice, apiPayConfig, payCloudPayments, apiReferral } from "../data";
 import { mockUser } from "../mock";
 
 type User = typeof mockUser;
@@ -50,6 +50,15 @@ export default function ProfileScreen({ user }: { user: User }) {
   const [subBusy, setSubBusy] = useState(false);
   const [payNote, setPayNote] = useState("");
   const [consent, setConsent] = useState(false);
+  const [refInfo, setRefInfo] = useState<{ link: string; count: number; days: number } | null>(null);
+  useEffect(() => { apiReferral().then(setRefInfo).catch(() => {}); }, []);
+
+  function inviteFriend() {
+    if (!refInfo) return;
+    const text = "Инвестирую без буллшита в «Без Б» — публичный портфель, AI-разбор и игра «Инвестор с нуля». Залетай 🚀";
+    const url = `https://t.me/share/url?url=${encodeURIComponent(refInfo.link)}&text=${encodeURIComponent(text)}`;
+    tgOpen(url);
+  }
 
   async function buyPremium() {
     if (!consent) { setPayNote("Поставь галочку согласия, чтобы продолжить."); return; }
@@ -187,6 +196,11 @@ export default function ProfileScreen({ user }: { user: User }) {
         <button className="list-row" onClick={() => setQuiz(true)}>
           <span className="lr-ic accent">🚩</span>
           <span>Квиз «Детектор буллшита»</span>
+          <IconChevron size={18} className="lr-chev" />
+        </button>
+        <button className="list-row" onClick={inviteFriend}>
+          <span className="lr-ic accent">👥</span>
+          <span>Пригласить друга{refInfo && refInfo.count > 0 ? ` · ${refInfo.count} 🎉` : ` · +${refInfo?.days ?? 3} дня премиума`}</span>
           <IconChevron size={18} className="lr-chev" />
         </button>
         <button className="list-row" onClick={shareResult}>
