@@ -110,6 +110,19 @@ export interface PlayerLevel {
 export const apiProfileLevel = () => reqJSON<PlayerLevel>("/api/profile/level");
 export const apiFantasyMentor = () => reqJSON<{ text: string }>("/api/fantasy/mentor", "POST");
 
+// ── событие дня + стрик входов ──
+export interface DailyEvent {
+  id: number; title: string; text: string;
+  choices: { key: string; label: string }[];
+  myChoice: string | null; crowd: Record<string, number>; total: number; takeaway?: string;
+}
+export const apiEventToday = () => reqJSON<DailyEvent>("/api/event/today");
+export const apiEventChoose = (choice: string) =>
+  postJSONr<{ myChoice: string; takeaway: string; crowd: Record<string, number>; total: number }>(
+    "/api/event/choose", { choice });
+export interface Streak { streak: number; best: number; today?: boolean; }
+export const apiStreakPing = () => postJSONr<Streak>("/api/streak/ping", {});
+
 // ── квиз «Детектор буллшита» ──
 export interface QuizStats { score: number; streak: number; best: number; answered: number[]; }
 export interface QuizNext {

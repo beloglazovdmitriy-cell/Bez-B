@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import BottomNav, { type Tab } from "./components/BottomNav";
 import WelcomeModal from "./components/WelcomeModal";
 import PortfolioSwitcher from "./components/PortfolioSwitcher";
@@ -12,13 +12,16 @@ import TradeScreen from "./screens/TradeScreen";
 import GameScreen from "./screens/GameScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import { useAppData } from "./useAppData";
-import type { Pf } from "./data";
+import { apiStreakPing, type Pf } from "./data";
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("feed");
   const [pf, setPf] = useState<Pf>("bezb");
   const [welcome, setWelcome] = useState(() => !localStorage.getItem("bezb_welcomed"));
   const data = useAppData(pf);
+
+  // отметить ежедневный визит (стрик входов)
+  useEffect(() => { apiStreakPing().catch(() => {}); }, []);
 
   function closeWelcome() {
     localStorage.setItem("bezb_welcomed", "1");

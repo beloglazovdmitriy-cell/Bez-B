@@ -1066,8 +1066,11 @@ def _player_level(uid) -> dict:
                       if (t.get("type") or t.get("side")) in ("buy", "sell"))
     except Exception:
         ftrades = 0
+    events = storage.event_answered_count(u)
+    login = storage.streak_get(u)
     xp = (dca.get("total", 0) * 15 + quiz.get("score", 0) * 10
-          + pred.get("points", 0) * 20 + onb.get("done", 0) * 25 + ftrades * 10)
+          + pred.get("points", 0) * 20 + onb.get("done", 0) * 25 + ftrades * 10
+          + events * 8 + login.get("best", 0) * 5)
     lvl = 1
     title = _LEVELS[0][1]
     cur_thr = 0
@@ -1082,6 +1085,61 @@ def _player_level(uid) -> dict:
 @app.get("/api/profile/level")
 def profile_level(x_init_data: str | None = Header(default=None)):
     return _player_level(_resolve_user(x_init_data).get("id"))
+
+
+def _today_num() -> int:
+    import time as _t
+    return int(_t.time()) // 86400
+
+
+@app.get("/api/event/today")
+def event_today(x_init_data: str | None = Header(default=None)):
+    """Событие дня + мой выбор + расклад. Без ключа ответов до выбора."""
+    import event_data
+    uid = _resolve_user(x_init_data).get("id")
+    day = _today_num()
+    ev = event_data.event_for_day(day)
+    my = storage.event_my_choice(day, f"u{uid}") if uid else None
+    crowd = storage.event_crowd(day)
+    out_choices = [{"key": c["key"], "label": c["label"]} for c in ev["choices"]]
+    res = {"id": ev["id"], "title": ev["title"], "text": ev["text"],
+           "choices": out_choices, "myChoice": my, "crowd": crowd, "total": sum(crowd.values())}
+    if my:  # после ответа отдаём разбор выбранного
+        ch = next((c for c in ev["choices"] if c["key"] == my), None)
+        res["takeaway"] = ch["takeaway"] if ch else ""
+    return res
+
+
+class EventChooseReq(BaseModel):
+    choice: str
+
+
+@app.post("/api/event/choose")
+def event_choose(req: EventChooseReq, x_init_data: str | None = Header(default=None)):
+    import event_data
+    uid = _resolve_user(x_init_data).get("id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Откройте приложение из Telegram")
+    day = _today_num()
+    ev = event_data.event_for_day(day)
+    ch = next((c for c in ev["choices"] if c["key"] == req.choice), None)
+    if not ch:
+        raise HTTPException(status_code=400, detail="Нет такого варианта")
+    storage.event_choose(day, f"u{uid}", req.choice)   # если уже выбрано — не меняем
+    my = storage.event_my_choice(day, f"u{uid}")
+    mych = next((c for c in ev["choices"] if c["key"] == my), ch)
+    crowd = storage.event_crowd(day)
+    return {"myChoice": my, "takeaway": mych["takeaway"], "crowd": crowd,
+            "total": sum(crowd.values())}
+
+
+@app.post("/api/streak/ping")
+def streak_ping(x_init_data: str | None = Header(default=None)):
+    """Отметить визит (вызывается при открытии приложения)."""
+    uid = _resolve_user(x_init_data).get("id")
+    if not uid:
+        return {"streak": 0, "best": 0, "today": False}
+    return storage.streak_ping(f"u{uid}")
 
 
 @app.post("/api/fantasy/mentor")

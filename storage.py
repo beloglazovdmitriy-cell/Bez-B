@@ -353,6 +353,141 @@ def quiz_reset_answered(uid: str) -> None:
             conn.close()
 
 
+# ──────────────── событие дня (игра) ────────────────
+
+def _ensure_event(conn):
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS event_choices ("
+        "day INTEGER, uid TEXT, choice TEXT, ts INTEGER, PRIMARY KEY(day, uid))")
+
+
+def event_my_choice(day: int, uid: str):
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_event(conn)
+            r = conn.execute("SELECT choice FROM event_choices WHERE day=? AND uid=?",
+                             (day, uid)).fetchone()
+            return r[0] if r else None
+        finally:
+            conn.close()
+
+
+def event_choose(day: int, uid: str, choice: str) -> bool:
+    """Записать выбор (один раз в день, потом не меняется)."""
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_event(conn)
+            ex = conn.execute("SELECT 1 FROM event_choices WHERE day=? AND uid=?",
+                              (day, uid)).fetchone()
+            if ex:
+                return False
+            conn.execute("INSERT INTO event_choices (day, uid, choice, ts) VALUES (?,?,?,?)",
+                         (day, uid, choice, int(time.time())))
+            conn.commit()
+            return True
+        finally:
+            conn.close()
+
+
+def event_crowd(day: int) -> dict:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_event(conn)
+            rows = conn.execute(
+                "SELECT choice, COUNT(*) FROM event_choices WHERE day=? GROUP BY choice",
+                (day,)).fetchall()
+        finally:
+            conn.close()
+    return {ch: n for ch, n in rows}
+
+
+def event_answered_count(uid: str) -> int:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_event(conn)
+            r = conn.execute("SELECT COUNT(*) FROM event_choices WHERE uid=?", (uid,)).fetchone()
+            return r[0] if r else 0
+        finally:
+            conn.close()
+
+
+# ──────────────── стрик входов (ежедневный визит) ────────────────
+
+def _ensure_login(conn):
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS login_streak ("
+        "uid TEXT PRIMARY KEY, last_day INTEGER, streak INTEGER, best INTEGER)")
+
+
+def streak_ping(uid: str) -> dict:
+    """Отметить визит. Возвращает {streak, best, today}. day = номер дня (UTC)."""
+    today = int(time.time()) // 86400
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_login(conn)
+            r = conn.execute("SELECT last_day, streak, best FROM login_streak WHERE uid=?",
+                             (uid,)).fetchone()
+            if not r:
+                streak, best, last = 1, 1, today
+            else:
+                last, streak, best = r
+                if last == today:
+                    pass
+                elif last == today - 1:
+                    streak += 1
+                else:
+                    streak = 1
+                best = max(best, streak)
+            conn.execute(
+                "INSERT INTO login_streak (uid, last_day, streak, best) VALUES (?,?,?,?) "
+                "ON CONFLICT(uid) DO UPDATE SET last_day=excluded.last_day, "
+                "streak=excluded.streak, best=excluded.best",
+                (uid, today, streak, best))
+            conn.commit()
+            return {"streak": streak, "best": best, "today": last == today}
+        finally:
+            conn.close()
+
+
+def streak_get(uid: str) -> dict:
+    today = int(time.time()) // 86400
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_login(conn)
+            r = conn.execute("SELECT last_day, streak, best FROM login_streak WHERE uid=?",
+                             (uid,)).fetchone()
+        finally:
+            conn.close()
+    if not r:
+        return {"streak": 0, "best": 0}
+    last, streak, best = r
+    # если пропущен день — текущий стрик уже не активен (обнулится при следующем визите)
+    if last < today - 1:
+        streak = 0
+    return {"streak": streak, "best": best}
+
+
+def streak_users_to_remind(min_streak: int = 2) -> list:
+    """uid пользователей с активным стриком, кто сегодня ещё не заходил."""
+    today = int(time.time()) // 86400
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_login(conn)
+            rows = conn.execute(
+                "SELECT uid, streak FROM login_streak WHERE last_day=? AND streak>=?",
+                (today - 1, min_streak)).fetchall()
+            return [r[0] for r in rows]
+        finally:
+            conn.close()
+
+
 # ──────────────── игра «Прогноз недели» ────────────────
 
 def _ensure_pred(conn):

@@ -3,7 +3,9 @@ import PositionsList from "../components/PositionsList";
 import TradeSheet, { type Action } from "../components/TradeSheet";
 import {
   apiFantasy, apiFantasyJoin, apiFantasyLeaderboard, apiProfileLevel, apiFantasyMentor,
+  apiStreakPing, apiEventToday, apiEventChoose,
   loadSummary, type Fantasy, type FantasyLeader, type PlayerLevel, type Summary,
+  type Streak, type DailyEvent,
 } from "../data";
 
 const m = (n: number) => Math.round(n).toLocaleString("ru-RU").replace(/,/g, " ");
@@ -17,13 +19,28 @@ export default function GameScreen() {
   const [board, setBoard] = useState<FantasyLeader[] | null>(null);
   const [mentor, setMentor] = useState<string | null>(null);
   const [mentorBusy, setMentorBusy] = useState(false);
+  const [streak, setStreak] = useState<Streak | null>(null);
+  const [ev, setEv] = useState<DailyEvent | null>(null);
 
   function reload() {
     apiFantasy().then(setF).catch(() => {});
     apiProfileLevel().then(setLvl).catch(() => {});
     loadSummary("fantasy").then(setSum).catch(() => {});
   }
-  useEffect(() => { reload(); }, []);
+  useEffect(() => {
+    reload();
+    apiStreakPing().then(setStreak).catch(() => {});
+    apiEventToday().then(setEv).catch(() => {});
+  }, []);
+
+  async function chooseEvent(key: string) {
+    if (!ev || ev.myChoice) return;
+    try {
+      const r = await apiEventChoose(key);
+      setEv({ ...ev, myChoice: r.myChoice, takeaway: r.takeaway, crowd: r.crowd, total: r.total });
+      apiProfileLevel().then(setLvl).catch(() => {});
+    } catch { /* */ }
+  }
 
   async function join() {
     if (busy) return;
@@ -58,8 +75,44 @@ export default function GameScreen() {
               <div className="lvl-title">{lvl.title}</div>
               <div className="lvl-xp">{lvl.xp} XP{lvl.nextXp ? ` · до ур. ${lvl.level + 1}: ${lvl.nextXp}` : " · макс."}</div>
             </div>
+            {streak && streak.streak > 0 && (
+              <span className="streak-pill">🔥 {streak.streak}</span>
+            )}
           </div>
           <div className="lvl-bar"><div className="lvl-fill" style={{ width: `${pct}%` }} /></div>
+        </div>
+      )}
+
+      {/* событие дня */}
+      {ev && (
+        <div className="card event-card">
+          <div className="home-cap">{ev.title}</div>
+          <div className="event-text">{ev.text}</div>
+          {!ev.myChoice ? (
+            <div className="event-choices">
+              {ev.choices.map((c) => (
+                <button key={c.key} className="event-choice" onClick={() => chooseEvent(c.key)}>
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <>
+              {ev.choices.map((c) => {
+                const n = ev.crowd[c.key] || 0;
+                const p = ev.total ? Math.round((n / ev.total) * 100) : 0;
+                const mine = c.key === ev.myChoice;
+                return (
+                  <div key={c.key} className={"event-res" + (mine ? " mine" : "")}>
+                    <div className="event-res-bar" style={{ width: `${p}%` }} />
+                    <span className="event-res-label">{mine ? "✓ " : ""}{c.label}</span>
+                    <span className="event-res-pct">{p}%</span>
+                  </div>
+                );
+              })}
+              <div className="event-takeaway">{ev.takeaway}</div>
+            </>
+          )}
         </div>
       )}
 

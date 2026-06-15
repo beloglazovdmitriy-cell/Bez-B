@@ -1031,6 +1031,29 @@ _MIDDAY_HOUR = int(os.getenv("CONTENT_MIDDAY_HOUR", "10"))     # рубрика 
 _SAT_HOUR = int(os.getenv("CONTENT_SAT_HOUR", "11"))          # суббота — манифест
 _PRICE_SNAPSHOT_HOUR = int(os.getenv("PRICE_SNAPSHOT_HOUR", "23"))  # снимок цен (после US-закрытия, MSK)
 _PREDICT_HOUR = int(os.getenv("PREDICT_HOUR", "10"))               # прогноз недели — Пн
+_REMIND_HOUR = int(os.getenv("REMIND_HOUR", "19"))                 # вечернее напоминание
+
+
+async def job_daily_reminder(context: ContextTypes.DEFAULT_TYPE):
+    """Вечером напомнить тем, у кого активный стрик, но сегодня ещё не заходили —
+    чтобы не потеряли серию и прошли «событие дня»."""
+    uids = storage.streak_users_to_remind(min_streak=2)
+    if not uids:
+        return
+    kb = InlineKeyboardMarkup(
+        [[InlineKeyboardButton("🔥 Открыть Без Б", url=config.BOT_URL)]])
+    sent = 0
+    for u in uids:
+        try:
+            chat_id = int(str(u).lstrip("u"))
+            await context.bot.send_message(
+                chat_id,
+                "🔥 Не потеряй серию! Загляни в «Без Б» — тебя ждёт событие дня "
+                "и разбор от наставника.", reply_markup=kb)
+            sent += 1
+        except Exception:
+            pass
+    log.info("Напоминания о стрике: отправлено %d/%d", sent, len(uids))
 
 
 async def job_predict_weekly(context: ContextTypes.DEFAULT_TYPE):
@@ -1218,6 +1241,7 @@ def main():
         jq.run_daily(job_content_saturday, time=dtime(hour=_SAT_HOUR))
         jq.run_daily(job_price_snapshot, time=dtime(hour=_PRICE_SNAPSHOT_HOUR, minute=50))
         jq.run_daily(job_predict_weekly, time=dtime(hour=_PREDICT_HOUR))
+        jq.run_daily(job_daily_reminder, time=dtime(hour=_REMIND_HOUR))
         log.info("Снимок: Вс 18:00. Черновики: будни %02d:00 дайджест, "
                  "%02d:00 рубрика дня, Сб %02d:00 манифест.",
                  _MORNING_HOUR, _MIDDAY_HOUR, _SAT_HOUR)
