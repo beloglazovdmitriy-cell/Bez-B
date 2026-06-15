@@ -1,14 +1,10 @@
 import { useState, useEffect } from "react";
 import BottomNav, { type Tab } from "./components/BottomNav";
 import WelcomeModal from "./components/WelcomeModal";
-import PortfolioSwitcher from "./components/PortfolioSwitcher";
 import { IconLogo } from "./components/Icons";
 import FeedScreen from "./screens/FeedScreen";
-import PortfolioScreen from "./screens/PortfolioScreen";
-import ChartScreen from "./screens/ChartScreen";
-import JournalScreen from "./screens/JournalScreen";
+import PortfolioTab from "./screens/PortfolioTab";
 import CalcScreen from "./screens/CalcScreen";
-import TradeScreen from "./screens/TradeScreen";
 import GameScreen from "./screens/GameScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import { useAppData } from "./useAppData";
@@ -28,9 +24,6 @@ export default function App() {
     setWelcome(false);
   }
 
-  // переключатель портфеля нужен на экранах, зависящих от портфеля
-  const showSwitch = tab === "portfolio" || tab === "chart" || tab === "journal" || tab === "trade";
-
   return (
     <div className="app">
       {welcome && <WelcomeModal onClose={closeWelcome} />}
@@ -41,17 +34,10 @@ export default function App() {
         <div className="tagline">Публичный портфель · инвестиции без буллшита</div>
       </header>
 
-      {showSwitch && <PortfolioSwitcher pf={pf} onChange={setPf} />}
-
       {tab === "feed" && <FeedScreen />}
       {tab === "game" && <GameScreen />}
-      {tab === "portfolio" && <PortfolioScreen summary={data.summary} pf={pf} onReload={data.reload} />}
-      {tab === "chart" && <ChartScreen history={data.history} bench={data.bench} />}
-      {tab === "journal" && <JournalScreen journal={data.journal} user={data.user} pf={pf} />}
+      {tab === "portfolio" && <PortfolioTab data={data} pf={pf} setPf={setPf} />}
       {tab === "calc" && <CalcScreen />}
-      {tab === "trade" && (
-        <TradeScreen user={data.user} summary={data.summary} onDone={data.reload} pf={pf} />
-      )}
       {tab === "profile" && <ProfileScreen user={data.user} />}
 
       <BottomNav active={tab} onChange={setTab} />

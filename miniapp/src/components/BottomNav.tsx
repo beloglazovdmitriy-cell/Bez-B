@@ -2,14 +2,11 @@ import type { ComponentType } from "react";
 import {
   IconFeed,
   IconPortfolio,
-  IconChart,
-  IconJournal,
-  IconTrade,
   IconProfile,
   IconCalc,
 } from "./Icons";
 
-export type Tab = "feed" | "game" | "portfolio" | "chart" | "journal" | "calc" | "trade" | "profile";
+export type Tab = "feed" | "game" | "portfolio" | "calc" | "profile";
 
 const IconGame = ({ size = 22 }: { size?: number }) => (
   <span style={{ fontSize: size, lineHeight: 1 }}>🎮</span>
@@ -18,10 +15,7 @@ const IconGame = ({ size = 22 }: { size?: number }) => (
 const TABS: { id: Tab; icon: ComponentType<{ size?: number }>; label: string }[] = [
   { id: "feed", icon: IconFeed, label: "Лента" },
   { id: "game", icon: IconGame, label: "Игра" },
-  { id: "portfolio", icon: IconPortfolio, label: "Портфель" },
-  { id: "trade", icon: IconTrade, label: "Сделки" },
-  { id: "chart", icon: IconChart, label: "Динамика" },
-  { id: "journal", icon: IconJournal, label: "Журнал" },
+  { id: "portfolio", icon: IconPortfolio, label: "Без Б" },
   { id: "calc", icon: IconCalc, label: "Расчёт" },
   { id: "profile", icon: IconProfile, label: "Профиль" },
 ];
