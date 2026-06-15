@@ -811,13 +811,14 @@ async def cloudpayments_pay(request: Request,
     Отвечаем {code:0} = принято. Источник истины об оплате — этот вызов."""
     raw = await request.body()
     secret = config.CLOUDPAYMENTS_API_SECRET
-    if secret:
-        import base64
-        digest = hmac.new(secret.encode(), raw, hashlib.sha256).digest()
-        expected = base64.b64encode(digest).decode()
-        got = content_hmac or x_content_hmac or ""
-        if not hmac.compare_digest(expected, got):
-            return {"code": 13}  # подпись неверна
+    if not secret:
+        return {"code": 13}      # пока секрет не задан — выдачу не делаем (fail-closed)
+    import base64
+    digest = hmac.new(secret.encode(), raw, hashlib.sha256).digest()
+    expected = base64.b64encode(digest).decode()
+    got = content_hmac or x_content_hmac or ""
+    if not hmac.compare_digest(expected, got):
+        return {"code": 13}      # подпись неверна
     form = dict(parse_qsl(raw.decode("utf-8", "ignore")))
     account = form.get("AccountId", "")           # наш uid вида u<id>
     invoice = form.get("InvoiceId", "")           # premium:u<id>:<tier>
