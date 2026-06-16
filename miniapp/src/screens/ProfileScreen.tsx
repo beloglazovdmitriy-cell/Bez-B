@@ -7,7 +7,7 @@ import QaSheet from "../components/QaSheet";
 import QuizSheet from "../components/QuizSheet";
 import AboutSheet from "../components/AboutSheet";
 import Onboarding from "../components/Onboarding";
-import { apiSubscribe, apiUnsubscribe, apiPayInvoice, apiPayConfig, apiCreateOrder, apiReferral } from "../data";
+import { apiSubscribe, apiUnsubscribe, apiPayInvoice, apiPayConfig, payCloudPayments, apiReferral } from "../data";
 import { mockUser } from "../mock";
 
 type User = typeof mockUser;
@@ -70,12 +70,12 @@ export default function ProfileScreen({ user }: { user: User }) {
     try {
       const cfg = await apiPayConfig();
       if (cfg.provider === "cloudpayments") {
-        // Открываем hosted-страницу CloudPayments во внешнем браузере: там 3DS банка
-        // (ввод кода из СМС) работает, а виджет внутри Telegram WebView виснет на этом шаге.
-        setPayNote("Открываю страницу оплаты…");
-        const { url } = await apiCreateOrder();
-        openExt(url);
-        setPayNote("Оплати на открывшейся странице. После оплаты вернись и переоткрой приложение — премиум активируется автоматически.");
+        // Виджет CloudPayments прямо в Mini App (удобнее пользователю). 3DS показывается
+        // в оверлее виджета. Skin не "mini", чтобы окну ввода кода из СМС хватало места.
+        await payCloudPayments(cfg, {
+          onSuccess: () => setPayNote("Оплачено ✓ Премиум активируется. Переоткрой приложение."),
+          onFail: (r) => setPayNote(r ? `Платёж не прошёл: ${r}` : "Платёж не прошёл. Попробуй ещё раз."),
+        });
         return;
       }
       if (cfg.provider === "none") { setPayNote("Оплата скоро будет подключена."); return; }

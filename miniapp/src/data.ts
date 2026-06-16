@@ -199,7 +199,7 @@ export async function payCloudPayments(
     currency: "RUB",
     accountId: cfg.accountId,
     invoiceId: cfg.invoiceId,
-    skin: "mini",
+    skin: "classic",
   }, {
     onSuccess: () => cb.onSuccess?.(),
     onFail: (reason: string) => cb.onFail?.(reason),
