@@ -838,6 +838,43 @@ async def cloudpayments_pay(request: Request,
     return {"code": 0}
 
 
+@app.post("/api/cloudpayments/order")
+def cloudpayments_order(x_init_data: str | None = Header(default=None)):
+    """Создать платёжную ссылку CloudPayments (hosted-страница) и вернуть {url}.
+    Открывается во ВНЕШНЕМ браузере (tg.openLink) — там 3DS банка работает, в отличие
+    от виджета внутри Telegram WebView, где форма ввода кода виснет. Оплата подтверждается
+    Pay-webhook (/api/cloudpayments/pay) — он остаётся источником истины о выдаче премиума."""
+    uid = _resolve_user(x_init_data).get("id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Откройте приложение из Telegram")
+    if not (config.CLOUDPAYMENTS_PUBLIC_ID and config.CLOUDPAYMENTS_API_SECRET):
+        raise HTTPException(status_code=503, detail="Оплата скоро будет подключена")
+    import requests
+    price_rub, tier = _premium_price(uid)
+    title = config.PREMIUM_TITLE + (" · early-bird" if tier == "eb" else "")
+    body = {
+        "Amount": price_rub,
+        "Currency": "RUB",
+        "Description": title,
+        "AccountId": f"u{uid}",
+        "InvoiceId": f"premium:u{uid}:{tier}",
+        "JsonData": {"premiumDays": config.PREMIUM_DAYS, "tier": tier},
+    }
+    try:
+        r = requests.post(
+            "https://api.cloudpayments.ru/orders/create",
+            json=body,
+            auth=(config.CLOUDPAYMENTS_PUBLIC_ID, config.CLOUDPAYMENTS_API_SECRET),
+            timeout=15)
+        data = r.json()
+    except Exception:
+        raise HTTPException(status_code=502, detail="Платёжный сервис недоступен, попробуйте позже")
+    if not data.get("Success") or not data.get("Model", {}).get("Url"):
+        msg = data.get("Message") or "Не удалось создать ссылку на оплату"
+        raise HTTPException(status_code=502, detail=msg)
+    return {"url": data["Model"]["Url"]}
+
+
 @app.post("/api/pay/invoice")
 def pay_invoice(x_init_data: str | None = Header(default=None)):
     """Создать ссылку на оплату премиума (Telegram-инвойс через провайдера).

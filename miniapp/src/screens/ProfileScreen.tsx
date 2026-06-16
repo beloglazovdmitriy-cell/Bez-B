@@ -5,8 +5,9 @@ import {
 import ContentStudio from "../components/ContentStudio";
 import QaSheet from "../components/QaSheet";
 import QuizSheet from "../components/QuizSheet";
+import AboutSheet from "../components/AboutSheet";
 import Onboarding from "../components/Onboarding";
-import { apiSubscribe, apiUnsubscribe, apiPayInvoice, apiPayConfig, payCloudPayments, apiReferral } from "../data";
+import { apiSubscribe, apiUnsubscribe, apiPayInvoice, apiPayConfig, apiCreateOrder, apiReferral } from "../data";
 import { mockUser } from "../mock";
 
 type User = typeof mockUser;
@@ -47,6 +48,7 @@ export default function ProfileScreen({ user }: { user: User }) {
   const [studio, setStudio] = useState(false);
   const [qa, setQa] = useState(false);
   const [quiz, setQuiz] = useState(false);
+  const [about, setAbout] = useState(false);
   const [subscribed, setSubscribed] = useState(!!(u as any).isSubscribed);
   const [subBusy, setSubBusy] = useState(false);
   const [payNote, setPayNote] = useState("");
@@ -68,10 +70,12 @@ export default function ProfileScreen({ user }: { user: User }) {
     try {
       const cfg = await apiPayConfig();
       if (cfg.provider === "cloudpayments") {
-        await payCloudPayments(cfg, {
-          onSuccess: () => setPayNote("Оплачено ✓ Премиум активируется. Переоткрой приложение."),
-          onFail: () => setPayNote("Платёж не прошёл. Попробуй ещё раз."),
-        });
+        // Открываем hosted-страницу CloudPayments во внешнем браузере: там 3DS банка
+        // (ввод кода из СМС) работает, а виджет внутри Telegram WebView виснет на этом шаге.
+        setPayNote("Открываю страницу оплаты…");
+        const { url } = await apiCreateOrder();
+        openExt(url);
+        setPayNote("Оплати на открывшейся странице. После оплаты вернись и переоткрой приложение — премиум активируется автоматически.");
         return;
       }
       if (cfg.provider === "none") { setPayNote("Оплата скоро будет подключена."); return; }
@@ -217,6 +221,11 @@ export default function ProfileScreen({ user }: { user: User }) {
           <span>Подписаться на канал <Brand size={14} /></span>
           <IconChevron size={18} className="lr-chev" />
         </button>
+        <button className="list-row" onClick={() => setAbout(true)}>
+          <span className="lr-ic accent">📜</span>
+          <span>О проекте · манифест</span>
+          <IconChevron size={18} className="lr-chev" />
+        </button>
       </div>
 
       <div className="disclaimer">Не является индивидуальной инвестиционной рекомендацией.</div>
@@ -224,6 +233,7 @@ export default function ProfileScreen({ user }: { user: User }) {
       {studio && <ContentStudio onClose={() => setStudio(false)} />}
       {qa && <QaSheet isAdmin={u.isAdmin} onClose={() => setQa(false)} />}
       {quiz && <QuizSheet onClose={() => setQuiz(false)} />}
+      {about && <AboutSheet onClose={() => setAbout(false)} />}
     </div>
   );
 }

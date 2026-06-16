@@ -168,6 +168,10 @@ export interface PayConfig {
 }
 export const apiPayConfig = () => reqJSON<PayConfig>("/api/pay/config");
 
+// Создать платёжную ссылку CloudPayments (hosted-страница). Открываем её во внешнем
+// браузере — там 3DS работает, в отличие от виджета внутри Telegram WebView (виснет).
+export const apiCreateOrder = () => reqJSON<{ url: string }>("/api/cloudpayments/order", "POST");
+
 // Загрузить SDK CloudPayments (один раз) и открыть виджет оплаты.
 let _cpLoaded: Promise<void> | null = null;
 function loadCloudPayments(): Promise<void> {
