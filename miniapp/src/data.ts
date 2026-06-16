@@ -191,6 +191,17 @@ export async function payCloudPayments(
   cfg: PayConfig, cb: { onSuccess?: () => void; onFail?: (r: string) => void } = {},
 ): Promise<void> {
   await loadCloudPayments();
+  const tg = (window as any).Telegram?.WebApp;
+  // На время оплаты выходим из фуллскрина и возвращаем вертикальные свайпы:
+  // иначе окно 3DS банка (ввод кода из СМС) виснет — клавиатура не появляется,
+  // а Telegram перехватывает касания/скролл оверлея.
+  try { tg?.exitFullscreen?.(); } catch { /* старые клиенты */ }
+  try { tg?.enableVerticalSwipes?.(); } catch { /* старые клиенты */ }
+  const restore = () => {
+    try { tg?.requestFullscreen?.(); } catch { /* noop */ }
+    try { tg?.disableVerticalSwipes?.(); } catch { /* noop */ }
+  };
+
   const widget = new (window as any).cp.CloudPayments();
   widget.pay("charge", {
     publicId: cfg.publicId,
@@ -201,8 +212,9 @@ export async function payCloudPayments(
     invoiceId: cfg.invoiceId,
     skin: "classic",
   }, {
-    onSuccess: () => cb.onSuccess?.(),
-    onFail: (reason: string) => cb.onFail?.(reason),
+    onSuccess: () => { restore(); cb.onSuccess?.(); },
+    onFail: (reason: string) => { restore(); cb.onFail?.(reason); },
+    onComplete: () => { restore(); },   // на любой исход (в т.ч. закрытие окна)
   });
 }
 
