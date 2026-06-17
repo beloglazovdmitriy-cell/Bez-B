@@ -605,7 +605,8 @@ def content_custom(req: TopicReq, x_init_data: str | None = Header(default=None)
     return storage.add_draft("custom", text)
 
 
-REACTIONS = ["🔥", "👍", "🤔"]
+# "bez" — фирменная реакция-логотип «Без Б» (рисуется монетой на фронте).
+REACTIONS = ["bez", "🔥", "👍"]
 
 
 def _reaction_uid(init_data: str | None) -> str:
@@ -619,11 +620,14 @@ def feed(x_init_data: str | None = Header(default=None)):
     """Лента опубликованных постов с реакциями (публично)."""
     posts = storage.list_published()
     uid = _reaction_uid(x_init_data)
-    rmap = storage.reactions_for([p["id"] for p in posts], uid)
+    ids = [p["id"] for p in posts]
+    rmap = storage.reactions_for(ids, uid)
+    cmap = storage.comment_counts(ids)
     for p in posts:
         r = rmap.get(p["id"], {"counts": {}, "mine": []})
         p["reactions"] = r["counts"]
         p["mine"] = r["mine"]
+        p["comments"] = cmap.get(p["id"], 0)
     return posts
 
 
@@ -642,6 +646,46 @@ def feed_react(req: ReactReq, x_init_data: str | None = Header(default=None)):
     r = storage.reactions_for([req.post_id], uid).get(
         req.post_id, {"counts": {}, "mine": []})
     return r
+
+
+@app.get("/api/feed/comments")
+def feed_comments(post_id: int):
+    """Комментарии под постом (публично читаемы)."""
+    return storage.list_comments(post_id)
+
+
+class CommentReq(BaseModel):
+    post_id: int
+    text: str
+
+
+@app.post("/api/feed/comment")
+def feed_comment(req: CommentReq, x_init_data: str | None = Header(default=None)):
+    """Оставить комментарий. Нужна авторизация Telegram (аноним не пишет)."""
+    u = _resolve_user(x_init_data)
+    uid = u.get("id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Откройте приложение из Telegram, чтобы комментировать")
+    text = (req.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Пустой комментарий")
+    if len(text) > 600:
+        raise HTTPException(status_code=400, detail="Слишком длинно (макс. 600 символов)")
+    return storage.add_comment(req.post_id, f"u{uid}", u.get("name", "Гость"), text)
+
+
+class CommentDelReq(BaseModel):
+    id: int
+
+
+@app.post("/api/feed/comment/delete")
+def feed_comment_delete(req: CommentDelReq, x_init_data: str | None = Header(default=None)):
+    """Удалить комментарий — только владелец/админ (модерация)."""
+    u = _resolve_user(x_init_data)
+    if not u.get("isAdmin"):
+        raise HTTPException(status_code=403, detail="Только владелец может удалять комментарии")
+    storage.delete_comment(req.id)
+    return {"ok": True}
 
 
 @app.get("/api/home")

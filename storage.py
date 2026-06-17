@@ -200,6 +200,73 @@ def reactions_for(post_ids: list, uid: str) -> dict:
     return out
 
 
+# ──────────────── комментарии под постами ленты ────────────────
+
+def _ensure_comments(conn):
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS comments ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER NOT NULL, "
+        "uid TEXT NOT NULL, name TEXT, text TEXT NOT NULL, ts INTEGER NOT NULL)")
+
+
+def add_comment(post_id: int, uid: str, name: str, text: str) -> dict:
+    now = int(time.time())
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_comments(conn)
+            cur = conn.execute(
+                "INSERT INTO comments (post_id, uid, name, text, ts) VALUES (?,?,?,?,?)",
+                (post_id, uid, name, text, now))
+            conn.commit()
+            return {"id": cur.lastrowid, "postId": post_id, "uid": uid,
+                    "name": name, "text": text, "ts": now}
+        finally:
+            conn.close()
+
+
+def list_comments(post_id: int, limit: int = 200) -> list:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_comments(conn)
+            rows = conn.execute(
+                "SELECT id, uid, name, text, ts FROM comments WHERE post_id=? "
+                "ORDER BY id ASC LIMIT ?", (post_id, limit)).fetchall()
+            return [{"id": r[0], "uid": r[1], "name": r[2] or "Аноним",
+                     "text": r[3], "ts": r[4]} for r in rows]
+        finally:
+            conn.close()
+
+
+def comment_counts(post_ids: list) -> dict:
+    """{post_id: число комментариев} для списка постов."""
+    if not post_ids:
+        return {}
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_comments(conn)
+            qm = ",".join("?" * len(post_ids))
+            rows = conn.execute(
+                f"SELECT post_id, COUNT(*) FROM comments "
+                f"WHERE post_id IN ({qm}) GROUP BY post_id", post_ids).fetchall()
+            return {r[0]: r[1] for r in rows}
+        finally:
+            conn.close()
+
+
+def delete_comment(comment_id: int) -> None:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_comments(conn)
+            conn.execute("DELETE FROM comments WHERE id=?", (comment_id,))
+            conn.commit()
+        finally:
+            conn.close()
+
+
 # ──────────────── сезон фэнтези-портфелей ────────────────
 
 def _ensure_fantasy(conn):

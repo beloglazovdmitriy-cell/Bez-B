@@ -319,10 +319,19 @@ export const apiPublish = (text: string) => postJSON("/api/publish", { text });
 // ── Контент-студия (очередь черновиков, только владелец) ──
 export interface Draft {
   id: number; ts: number; kind: string; text: string; status: string;
-  reactions?: Record<string, number>; mine?: string[];
+  reactions?: Record<string, number>; mine?: string[]; comments?: number;
 }
 export interface ReactState { counts: Record<string, number>; mine: string[]; }
-export const FEED_REACTIONS = ["🔥", "👍", "🤔"];
+// "bez" — фирменная реакция-логотип (рисуется монетой), остальные — эмодзи.
+export const FEED_REACTIONS = ["bez", "🔥", "👍"];
+
+export interface Comment { id: number; uid: string; name: string; text: string; ts: number; }
+export const apiComments = (post_id: number) =>
+  reqJSON<Comment[]>(`/api/feed/comments?post_id=${post_id}`);
+export const apiAddComment = (post_id: number, text: string) =>
+  postJSONr<Comment>("/api/feed/comment", { post_id, text });
+export const apiDeleteComment = (id: number) =>
+  postJSONr<{ ok: boolean }>("/api/feed/comment/delete", { id });
 
 export async function apiFeedReact(post_id: number, emoji: string): Promise<ReactState> {
   const res = await fetch(`${API_BASE}/api/feed/react`, {

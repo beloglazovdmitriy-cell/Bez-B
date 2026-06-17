@@ -34,7 +34,7 @@ export default function App() {
         <div className="tagline">Публичный портфель · инвестиции без буллшита</div>
       </header>
 
-      {tab === "feed" && <FeedScreen />}
+      {tab === "feed" && <FeedScreen isAdmin={!!data.user.isAdmin} />}
       {tab === "game" && <GameScreen />}
       {tab === "portfolio" && <PortfolioTab data={data} pf={pf} setPf={setPf} />}
       {tab === "calc" && <CalcScreen />}

@@ -38,9 +38,10 @@ function shareResult() {
 
 const PREMIUM = [
   "Мгновенные пуш-уведомления о каждой сделке",
-  "Машина времени — портфель на любую дату",
+  "Умные предупреждения о рынке: перегрев, паника, риск",
   "AI-разбор: твой портфель против Без Б",
-  "Закрытый чат и еженедельные эфиры",
+  "Машина времени — портфель на любую дату",
+  "Закрытый чат подписчиков",
 ];
 
 export default function ProfileScreen({ user }: { user: User }) {
@@ -148,7 +149,11 @@ export default function ProfileScreen({ user }: { user: User }) {
       <div className="card premium">
         <div className="premium-head">
           <span className="premium-title"><IconCrown size={20} /> Премиум <Brand size={16} /></span>
-          <span className="premium-price">{(u as any).premiumPrice ?? 990} ₽/мес</span>
+          <span className="premium-price">
+            {(u as any).premiumEarlyBird
+              ? <><s className="price-old">990</s> {(u as any).premiumPrice} ₽/мес</>
+              : `${(u as any).premiumPrice ?? 990} ₽/мес`}
+          </span>
         </div>
         <div className="premium-list">
           {PREMIUM.map((f, i) => (
@@ -169,7 +174,12 @@ export default function ProfileScreen({ user }: { user: User }) {
         ) : (
           <>
             {(u as any).premiumEarlyBird && (
-              <div className="eb-note">🐦 Early-bird: {(u as any).premiumPrice} ₽ навсегда · осталось {(u as any).earlyBirdLeft} мест</div>
+              <div className="eb-note">
+                🐦 Обычная цена — <b>990 ₽/мес</b>. Сейчас для первых подписчиков —
+                {" "}<b>{(u as any).premiumPrice} ₽/мес</b>, и эта цена закрепляется за тобой
+                {" "}<b>навсегда</b>: пока продлеваешь подписку, она не вырастет.
+                {" "}Осталось мест: {(u as any).earlyBirdLeft}.
+              </div>
             )}
             <label className="consent" style={{ marginTop: 14 }}>
               <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
