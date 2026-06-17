@@ -177,6 +177,12 @@ body {
   border: none; background: var(--accent); color: #06231f; font-size: 15px; cursor: pointer; }
 .comment-send:disabled { opacity: .45; cursor: default; }
 
+/* превью опроса в студии */
+.poll-preview { margin: 6px 0 4px; }
+.poll-q { font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+.poll-opt { font-size: 14px; padding: 6px 10px; border: 1px solid var(--border);
+  border-radius: 8px; margin-bottom: 6px; }
+
 /* контент-студия: карточки черновиков */
 .draft { padding: 12px 14px; }
 .draft-kind { font-weight: 700; font-size: 13px; color: var(--accent); margin-bottom: 4px; }

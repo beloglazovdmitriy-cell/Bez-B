@@ -1045,9 +1045,8 @@ async def job_weekly(context: ContextTypes.DEFAULT_TYPE):
 # «Контент-студии», затем шлёт владельцу пинг «готово». Авто-публикации НЕТ —
 # владелец проверяет и публикует вручную (draft-on-review).
 # Час утренних/дневных джоб настраивается через env (время сервера).
-_MORNING_HOUR = int(os.getenv("CONTENT_MORNING_HOUR", "9"))    # будни — дайджест
-_MIDDAY_HOUR = int(os.getenv("CONTENT_MIDDAY_HOUR", "10"))     # рубрика дня
-_SAT_HOUR = int(os.getenv("CONTENT_SAT_HOUR", "11"))          # суббота — манифест
+_MORNING_HOUR = int(os.getenv("CONTENT_MORNING_HOUR", "9"))    # утро — экспертный пост
+_EVENING_HOUR = int(os.getenv("CONTENT_EVENING_HOUR", "19"))   # вечер — опрос/конверсия
 _PRICE_SNAPSHOT_HOUR = int(os.getenv("PRICE_SNAPSHOT_HOUR", "23"))  # снимок цен (после US-закрытия, MSK)
 _PREDICT_HOUR = int(os.getenv("PREDICT_HOUR", "10"))               # прогноз недели — Пн
 _REMIND_HOUR = int(os.getenv("REMIND_HOUR", "19"))                 # вечернее напоминание
@@ -1140,7 +1139,11 @@ async def job_price_snapshot(context: ContextTypes.DEFAULT_TYPE):
 _KIND_LABEL = {
     "digest": "📰 Дайджест", "scenarios": "🔮 Сценарии", "edu": "📚 Ликбез",
     "manifest": "🧭 Манифест", "bullshit": "🚩 Детектор буллшита",
-    "crowd": "🌡 Разбор толпы",
+    "crowd": "🌡 Разбор толпы", "ta": "📐 Теханализ", "psych": "🧠 Психология",
+    "case": "💡 Кейс",
+    "promo_underdog": "🎯 Промо: Нелюбимчик", "promo_ai": "🎯 Промо: AI-разбор",
+    "promo_speed": "🎯 Промо: скорость", "promo_alert": "🎯 Промо: алерты",
+    "promo_sandbox": "🎯 Промо: песочница",
 }
 
 
@@ -1158,6 +1161,21 @@ async def _make_draft(context: ContextTypes.DEFAULT_TYPE, kind: str):
             text = await asyncio.to_thread(ai.scenarios_bezb)
         elif kind == "crowd":
             text = await asyncio.to_thread(ai.crowd_bezb)
+        elif kind == "ta":
+            text = await asyncio.to_thread(ai.ta_bezb, "BTCUSDT", "1d")
+        elif kind.startswith("poll_"):
+            import json as _json
+            p = await asyncio.to_thread(ai.poll, kind)
+            storage.use_uid("bezb")
+            d = storage.add_draft("poll", _json.dumps(p, ensure_ascii=False))
+            log.info("планировщик: опрос %s готов (id=%s)", kind, d)
+            if config.ADMIN_ID:
+                await context.bot.send_message(
+                    config.ADMIN_ID,
+                    "🗳 Готов черновик опроса. Открой Контент-студию, проверь и опубликуй.")
+            return
+        elif kind.startswith("promo_"):
+            text = await asyncio.to_thread(ai.convert_post, kind)
         else:
             text = await asyncio.to_thread(ai.content_post, kind)
         storage.use_uid("bezb")
@@ -1172,25 +1190,27 @@ async def _make_draft(context: ContextTypes.DEFAULT_TYPE, kind: str):
         log.exception("планировщик: не удалось подготовить черновик %s", kind)
 
 
+# Утренняя ротация экспертных рубрик по дням недели (Пн..Вс)
+_MORNING_ROTATION = ["digest", "edu", "crowd", "bullshit", "scenarios", "ta", "psych"]
+# Вечер: чередуем опрос ↔ конверсию через день, каждый со своей ротацией
+_EVENING_POLLS = ["poll_decision", "poll_predict", "poll_choose", "poll_mood"]
+_EVENING_PROMOS = ["promo_underdog", "promo_ai", "promo_speed", "promo_alert", "promo_sandbox"]
+
+
 async def job_content_morning(context: ContextTypes.DEFAULT_TYPE):
-    """Будни (Пн–Пт): дайджест «Рынок за 60 секунд»."""
-    if datetime.now().weekday() <= 4:
-        await _make_draft(context, "digest")
+    """Утро: экспертный пост дня по ротации (каждый день своя рубрика)."""
+    kind = _MORNING_ROTATION[datetime.now().weekday() % len(_MORNING_ROTATION)]
+    await _make_draft(context, kind)
 
 
-async def job_content_midday(context: ContextTypes.DEFAULT_TYPE):
-    """Рубрика дня: Вт ликбез, Ср разбор толпы, Чт детектор буллшита, Пт сценарии."""
-    kind = {1: "edu", 2: "crowd", 3: "bullshit", 4: "scenarios"}.get(
-        datetime.now().weekday())
-    if kind:
-        await _make_draft(context, kind)
-
-
-async def job_content_saturday(context: ContextTypes.DEFAULT_TYPE):
-    """Суббота через неделю (чётная ISO-неделя): манифест."""
-    now = datetime.now()
-    if now.weekday() == 5 and now.isocalendar().week % 2 == 0:
-        await _make_draft(context, "manifest")
+async def job_content_evening(context: ContextTypes.DEFAULT_TYPE):
+    """Вечер: чётный день — опрос (вовлечение), нечётный — конверсия (к премиуму)."""
+    day = datetime.now().timetuple().tm_yday
+    if day % 2 == 0:
+        kind = _EVENING_POLLS[(day // 2) % len(_EVENING_POLLS)]
+    else:
+        kind = _EVENING_PROMOS[(day // 2) % len(_EVENING_PROMOS)]
+    await _make_draft(context, kind)
 
 
 async def job_alerts(context: ContextTypes.DEFAULT_TYPE):
@@ -1319,10 +1339,9 @@ def main():
         jq.run_repeating(
             job_weekly, interval=timedelta(days=7),
             first=_seconds_until_next_sunday_18())
-        # контент-конвейер: авто-черновики на ревью по расписанию рубрик
+        # контент-конвейер: 2 черновика в день на ревью — утром эксперт, вечером опрос/конверсия
         jq.run_daily(job_content_morning, time=dtime(hour=_MORNING_HOUR))
-        jq.run_daily(job_content_midday, time=dtime(hour=_MIDDAY_HOUR))
-        jq.run_daily(job_content_saturday, time=dtime(hour=_SAT_HOUR))
+        jq.run_daily(job_content_evening, time=dtime(hour=_EVENING_HOUR))
         jq.run_daily(job_price_snapshot, time=dtime(hour=_PRICE_SNAPSHOT_HOUR, minute=50))
         jq.run_daily(job_predict_weekly, time=dtime(hour=_PREDICT_HOUR))
         jq.run_daily(job_daily_reminder, time=dtime(hour=_REMIND_HOUR))
@@ -1331,9 +1350,8 @@ def main():
                          interval=timedelta(hours=_ALERT_INTERVAL_HOURS), first=120)
         # «Нелюбимчик недели» (премиум) — Пн утром
         jq.run_daily(job_underdog_weekly, time=dtime(hour=_UNDERDOG_HOUR))
-        log.info("Снимок: Вс 18:00. Черновики: будни %02d:00 дайджест, "
-                 "%02d:00 рубрика дня, Сб %02d:00 манифест.",
-                 _MORNING_HOUR, _MIDDAY_HOUR, _SAT_HOUR)
+        log.info("Контент: утро %02d:00 экспертный пост, вечер %02d:00 опрос/конверсия.",
+                 _MORNING_HOUR, _EVENING_HOUR)
     else:
         log.warning("JobQueue недоступна — автоснимок и черновики отключены.")
 

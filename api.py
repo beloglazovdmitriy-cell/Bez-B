@@ -502,6 +502,24 @@ def _channel_post(text: str, chart: bytes | None = None, cta: bool = True):
         raise RuntimeError(r.text)
 
 
+def _channel_poll(question: str, options: list):
+    """Опубликовать нативный Telegram-опрос в канал (sendPoll)."""
+    import requests
+    base = f"https://api.telegram.org/bot{config.BOT_TOKEN}"
+    opts = [{"text": str(o)[:90]} for o in options][:4]
+    r = requests.post(f"{base}/sendPoll", json={
+        "chat_id": config.CHANNEL_ID, "question": str(question)[:250],
+        "options": opts, "is_anonymous": True}, timeout=20)
+    body = r.json()
+    if not body.get("ok"):
+        # фолбэк для старых Bot API: options как массив строк
+        r2 = requests.post(f"{base}/sendPoll", json={
+            "chat_id": config.CHANNEL_ID, "question": str(question)[:250],
+            "options": [str(o)[:90] for o in options][:4], "is_anonymous": True}, timeout=20)
+        if not r2.json().get("ok"):
+            raise RuntimeError(body.get("description") or r.text)
+
+
 def _chart_for(kind: str) -> bytes | None:
     """Подобрать график под рубрику (портфель Без Б)."""
     try:
@@ -579,8 +597,14 @@ def content_generate(kind: str, x_init_data: str | None = Header(default=None)):
             text = ai.crowd_post(market_mood.context())
         elif kind == "ta":
             text = ai.ta_bezb("BTCUSDT", "1d")
-        elif kind in ("edu", "manifest", "bullshit"):
+        elif kind in ("edu", "manifest", "bullshit", "psych", "case"):
             text = ai.content_post(kind)
+        elif kind.startswith("promo_"):
+            text = ai.convert_post(kind)
+        elif kind.startswith("poll_"):
+            import json as _json
+            p = ai.poll(kind)
+            return storage.add_draft("poll", _json.dumps(p, ensure_ascii=False))
         else:
             raise HTTPException(status_code=400, detail="неизвестная рубрика")
     except HTTPException:
@@ -1492,6 +1516,16 @@ async def content_publish(id: int, cta: bool = True, chart: bool = True,
     d = storage.get_draft(id)
     if not d:
         raise HTTPException(status_code=404, detail="Черновик не найден")
+    # опрос — публикуем как нативный Telegram-опрос
+    if d["kind"] == "poll":
+        import json as _json
+        try:
+            p = _json.loads(d["text"])
+            _channel_poll(p["question"], p["options"])
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Не удалось опубликовать опрос: {e}")
+        storage.set_draft_status(id, "published")
+        return {"ok": True}
     photo = None
     if image is not None:
         photo = await image.read()
