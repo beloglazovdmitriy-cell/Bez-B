@@ -1296,3 +1296,36 @@ def delete_draft(draft_id: int):
             conn.commit()
         finally:
             conn.close()
+
+
+# ──────────────── универсальное хранилище состояния (key→value) ────────────────
+# Для служебных флагов: антиспам-кулдаун AI-алертов и т.п. Значение — строка.
+
+def _ensure_meta(conn):
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)")
+
+
+def meta_get(key: str, default=None):
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_meta(conn)
+            row = conn.execute("SELECT v FROM meta WHERE k=?", (key,)).fetchone()
+            return row[0] if row else default
+        finally:
+            conn.close()
+
+
+def meta_set(key: str, value) -> None:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_meta(conn)
+            conn.execute(
+                "INSERT INTO meta (k, v) VALUES (?, ?) "
+                "ON CONFLICT(k) DO UPDATE SET v=excluded.v",
+                (key, str(value)))
+            conn.commit()
+        finally:
+            conn.close()

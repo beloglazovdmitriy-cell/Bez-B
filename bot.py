@@ -1051,6 +1051,9 @@ _SAT_HOUR = int(os.getenv("CONTENT_SAT_HOUR", "11"))          # суббота �
 _PRICE_SNAPSHOT_HOUR = int(os.getenv("PRICE_SNAPSHOT_HOUR", "23"))  # снимок цен (после US-закрытия, MSK)
 _PREDICT_HOUR = int(os.getenv("PREDICT_HOUR", "10"))               # прогноз недели — Пн
 _REMIND_HOUR = int(os.getenv("REMIND_HOUR", "19"))                 # вечернее напоминание
+_ALERT_INTERVAL_HOURS = int(os.getenv("ALERT_INTERVAL_HOURS", "3"))  # как часто проверять рынок на алерты
+_ALERT_QUIET_FROM = int(os.getenv("ALERT_QUIET_FROM", "23"))         # тихие часы: не пушить с 23:00
+_ALERT_QUIET_TO = int(os.getenv("ALERT_QUIET_TO", "8"))              # ...до 08:00 (MSK)
 
 
 async def job_daily_reminder(context: ContextTypes.DEFAULT_TYPE):
@@ -1189,6 +1192,50 @@ async def job_content_saturday(context: ContextTypes.DEFAULT_TYPE):
         await _make_draft(context, "manifest")
 
 
+async def job_alerts(context: ContextTypes.DEFAULT_TYPE):
+    """Умные предупреждения о рынке (премиум). Проверяет пороги перегрева/паники/
+    резкого движения и шлёт пуш премиум-подписчикам. Антиспам — кулдаун в alerts."""
+    # тихие часы: не будим людей ночью (события поймаем утром на следующем прогоне)
+    hour = datetime.now().hour
+    quiet = (_ALERT_QUIET_FROM <= hour or hour < _ALERT_QUIET_TO) if _ALERT_QUIET_FROM > _ALERT_QUIET_TO \
+        else (_ALERT_QUIET_FROM <= hour < _ALERT_QUIET_TO)
+    if quiet:
+        return
+    try:
+        import alerts
+        import ai
+        import notify
+    except Exception:
+        log.exception("job_alerts import failed")
+        return
+    try:
+        triggered = await asyncio.to_thread(alerts.check)
+    except Exception:
+        log.exception("alerts.check failed")
+        return
+    for a in triggered:
+        text = a["fallback"]
+        if ai.available():
+            try:
+                ai_text = await asyncio.to_thread(ai.alert_post, a["context"], a["title"])
+                if ai_text and ai_text.strip():
+                    text = f"{a['title']}\n\n{ai_text.strip()}"
+            except Exception:
+                log.exception("alert ai_post failed")
+        try:
+            sent = await asyncio.to_thread(notify.notify_alert, text)
+        except Exception:
+            log.exception("notify_alert failed")
+            continue
+        alerts.mark(a["key"])     # запускаем кулдаун только после отправки
+        try:
+            await context.bot.send_message(
+                config.ADMIN_ID,
+                f"⚠️ AI-алерт разослан ({a['key']}, премиум-доставок: {sent}).\n\n{text}")
+        except Exception:
+            pass
+
+
 def _seconds_until_next_sunday_18():
     now = datetime.now()
     target = now.replace(hour=18, minute=0, second=0, microsecond=0)
@@ -1261,6 +1308,9 @@ def main():
         jq.run_daily(job_price_snapshot, time=dtime(hour=_PRICE_SNAPSHOT_HOUR, minute=50))
         jq.run_daily(job_predict_weekly, time=dtime(hour=_PREDICT_HOUR))
         jq.run_daily(job_daily_reminder, time=dtime(hour=_REMIND_HOUR))
+        # умные предупреждения о рынке (премиум) — проверка каждые N часов
+        jq.run_repeating(job_alerts,
+                         interval=timedelta(hours=_ALERT_INTERVAL_HOURS), first=120)
         log.info("Снимок: Вс 18:00. Черновики: будни %02d:00 дайджест, "
                  "%02d:00 рубрика дня, Сб %02d:00 манифест.",
                  _MORNING_HOUR, _MIDDAY_HOUR, _SAT_HOUR)

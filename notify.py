@@ -40,6 +40,37 @@ def trade_message(tx: dict) -> str:
     return "\n".join(lines)
 
 
+def notify_alert(text: str) -> int:
+    """Разослать AI-предупреждение о рынке премиум-подписчикам (+ владельцу).
+
+    Синхронная — вызывать в отдельном потоке. Возвращает число доставленных.
+    Это премиум-фича: бесплатные подписчики алерты не получают.
+    """
+    if not text or not config.BOT_TOKEN:
+        return 0
+    subs = [u for u in storage.list_subscribers()
+            if storage.is_premium(f"u{u}") or u == config.ADMIN_ID]
+    if not subs:
+        return 0
+    import requests
+    base = f"https://api.telegram.org/bot{config.BOT_TOKEN}"
+    sent = 0
+    for uid in subs:
+        try:
+            r = requests.post(f"{base}/sendMessage", json={
+                "chat_id": uid, "text": text, "reply_markup": _kb()}, timeout=10)
+            body = r.json()
+            if body.get("ok"):
+                sent += 1
+            else:
+                desc = (body.get("description") or "").lower()
+                if any(w in desc for w in ("blocked", "deactivated", "chat not found")):
+                    storage.remove_subscriber(uid)
+        except Exception:
+            pass
+    return sent
+
+
 def notify_trade(tx: dict) -> int:
     """Разослать пуш о сделке всем подписчикам. Возвращает число доставленных.
 
