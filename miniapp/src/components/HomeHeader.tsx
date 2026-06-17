@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { apiHome, type Home } from "../data";
+import { IconLogo } from "./Icons";
 
 const SIDE_LABEL = { buy: "купил", sell: "продал" } as const;
 
@@ -39,15 +40,46 @@ function Gauge({ value }: { value: number }) {
 
 export default function HomeHeader() {
   const [h, setH] = useState<Home | null>(null);
+  const [openBreak, setOpenBreak] = useState(false);
 
   useEffect(() => { apiHome().then(setH).catch(() => setH(null)); }, []);
 
   const m = h?.mood;
   const t = h?.bezbToday;
-  if (!m && !t && !h?.digest) return null;   // дневная сводка пуста — ничего не показываем
+  const bi = h?.bezbIndex;
+  if (!bi && !m && !t && !h?.digest) return null;   // дневная сводка пуста — ничего не показываем
   return (
     <div className="home">
-      {m && (
+      {bi ? (
+        <div className="card home-mood home-index">
+          <div className="home-index-top">
+            <Gauge value={bi.value} />
+            <div className="home-mood-side">
+              <div className="home-cap"><IconLogo size={14} /> Индекс Без Б · режим рынка</div>
+              <div className="home-mood-label" style={{ color: moodColor(bi.value) }}>{bi.label}</div>
+              <div className="home-mood-prev">0 — страх · 100 — эйфория</div>
+            </div>
+          </div>
+          <button className="index-toggle" onClick={() => setOpenBreak((v) => !v)}>
+            {openBreak ? "Свернуть" : "Из чего складывается"} {openBreak ? "▲" : "▼"}
+          </button>
+          {openBreak && (
+            <div className="index-break">
+              {bi.components.map((c) => (
+                <div className="index-row" key={c.label}>
+                  <span className="index-row-label">{c.label}</span>
+                  <span className="index-bar">
+                    <span className="index-bar-fill"
+                      style={{ width: `${c.score}%`, background: moodColor(c.score) }} />
+                  </span>
+                  <span className="index-row-detail">{c.detail}</span>
+                </div>
+              ))}
+              <div className="index-disc">Карта режима и риска, а не сигнал. Не ИИР.</div>
+            </div>
+          )}
+        </div>
+      ) : m && (
         <div className="card home-mood">
           <Gauge value={m.value} />
           <div className="home-mood-side">

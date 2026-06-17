@@ -735,7 +735,27 @@ def home():
             break
     except Exception:
         pass
-    return {"mood": mood, "digest": digest, "bezbToday": today_trade}
+    # Индекс Без Б — собственный композит (тяжёлый, но кэшируется внутри модуля)
+    bezb_index = None
+    try:
+        import bezb_index as bi
+        d = bi.compute()
+        if d.get("value") is not None:
+            bezb_index = d
+    except Exception:
+        pass
+    return {"mood": mood, "digest": digest, "bezbToday": today_trade,
+            "bezbIndex": bezb_index}
+
+
+@app.get("/api/bezb-index")
+def bezb_index_endpoint():
+    """Полный Индекс Без Б с разбивкой по компонентам (публично)."""
+    try:
+        import bezb_index as bi
+        return bi.compute()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Индекс недоступен: {e}")
 
 
 class FeedbackReq(BaseModel):

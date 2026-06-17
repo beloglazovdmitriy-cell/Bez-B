@@ -361,7 +361,9 @@ export const apiFeed = () => reqJSON<Draft[]>("/api/feed");
 export interface HomeMood { value: number; label: string; prev: number; trend: "up" | "down" | "flat"; }
 export interface HomeDigest { id: number; ts: number; text: string; }
 export interface HomeTrade { side: "buy" | "sell"; ticker: string; amountUsd: number; date: string; isToday: boolean; reason: string; }
-export interface Home { mood: HomeMood | null; digest: HomeDigest | null; bezbToday: HomeTrade | null; }
+export interface BezbIndexComp { label: string; score: number; detail: string; }
+export interface BezbIndex { value: number; label: string; zone: string; components: BezbIndexComp[]; }
+export interface Home { mood: HomeMood | null; digest: HomeDigest | null; bezbToday: HomeTrade | null; bezbIndex?: BezbIndex | null; }
 export const apiHome = () => reqJSON<Home>("/api/home");
 export const apiContentGenerate = (kind: string) =>
   reqJSON<Draft>(`/api/content/generate?kind=${kind}`, "POST");
