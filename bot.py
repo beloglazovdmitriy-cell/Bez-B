@@ -1147,7 +1147,9 @@ async def job_predict_weekly(context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(
                 config.CHANNEL_ID, "\n\n".join(parts),
                 reply_markup=InlineKeyboardMarkup(
-                    [[InlineKeyboardButton("📲 Голосовать в Без Б", url=config.BOT_URL)]]))
+                    [[InlineKeyboardButton(
+                        "📲 Голосовать в Без Б",
+                        url=f"https://t.me/{config.BOT_USERNAME}?startapp=src_channel")]]))
         except Exception:
             log.exception("predict announce failed")
 

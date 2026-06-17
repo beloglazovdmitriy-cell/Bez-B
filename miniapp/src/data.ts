@@ -368,6 +368,10 @@ export interface Underdog {
 }
 export const apiUnderdog = () => reqJSON<Underdog>("/api/underdog");
 
+// Зафиксировать источник перехода (start_param из диплинка ?startapp=src_...)
+export const apiAppOpen = (src: string) =>
+  reqJSON<{ ok: boolean }>(`/api/appopen?src=${encodeURIComponent(src)}`, "POST");
+
 // ── Главная (домашняя сводка) ──
 export interface HomeMood { value: number; label: string; prev: number; trend: "up" | "down" | "flat"; }
 export interface HomeDigest { id: number; ts: number; text: string; }

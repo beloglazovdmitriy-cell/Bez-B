@@ -8,7 +8,7 @@ import CalcScreen from "./screens/CalcScreen";
 import GameScreen from "./screens/GameScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import { useAppData } from "./useAppData";
-import { apiStreakPing, type Pf } from "./data";
+import { apiStreakPing, apiAppOpen, type Pf } from "./data";
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("feed");
@@ -16,8 +16,12 @@ export default function App() {
   const [welcome, setWelcome] = useState(() => !localStorage.getItem("bezb_welcomed"));
   const data = useAppData(pf);
 
-  // отметить ежедневный визит (стрик входов)
-  useEffect(() => { apiStreakPing().catch(() => {}); }, []);
+  // отметить ежедневный визит (стрик входов) + источник перехода (start_param)
+  useEffect(() => {
+    apiStreakPing().catch(() => {});
+    const sp = (window as any).Telegram?.WebApp?.initDataUnsafe?.start_param;
+    if (sp) apiAppOpen(String(sp)).catch(() => {});
+  }, []);
 
   function closeWelcome() {
     localStorage.setItem("bezb_welcomed", "1");

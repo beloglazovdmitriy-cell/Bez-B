@@ -467,7 +467,10 @@ class TopicReq(BaseModel):
 
 
 def _cta_kb():
-    return {"inline_keyboard": [[{"text": "📈 Открыть Без Б", "url": config.BOT_URL}]]}
+    # прямой вход в мини-апп с меткой источника «channel» — чтобы считать
+    # переходы из канала (приложение фиксирует start_param при открытии).
+    url = f"https://t.me/{config.BOT_USERNAME}?startapp=src_channel"
+    return {"inline_keyboard": [[{"text": "📈 Открыть Без Б", "url": url}]]}
 
 
 def _channel_post(text: str, chart: bytes | None = None, cta: bool = True):
@@ -780,6 +783,19 @@ def bezb_index_endpoint():
         return bi.compute()
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Индекс недоступен: {e}")
+
+
+@app.post("/api/appopen")
+def app_open(src: str = "", x_init_data: str | None = Header(default=None)):
+    """Зафиксировать открытие мини-аппа с меткой источника (start_param).
+    Источник закрепляется за юзером (первый побеждает) — для статистики /sources."""
+    uid = _resolve_user(x_init_data).get("id")
+    if uid and src:
+        tag = src[4:] if src.startswith("src_") else src
+        tag = "".join(c for c in tag[:32] if c.isalnum() or c in "_-").lower()
+        if tag:
+            storage.source_track(f"u{uid}", tag)
+    return {"ok": True}
 
 
 @app.get("/api/underdog")
