@@ -438,6 +438,17 @@ body {
 .index-bar-fill { display: block; height: 100%; border-radius: 999px; }
 .index-row-detail { font-size: 11px; color: var(--muted); white-space: nowrap; }
 .index-disc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+/* Нелюбимчик недели */
+.underdog { padding: 14px 16px; }
+.underdog-locked { border: 1px dashed var(--accent); background: rgba(38,166,154,.07); }
+.underdog-teaser { font-size: 14px; margin: 4px 0 8px; }
+.underdog-cta { font-size: 12.5px; font-weight: 700; color: var(--accent); }
+.underdog-head { display: flex; align-items: baseline; gap: 10px; margin: 2px 0 4px; }
+.underdog-ticker { font-size: 22px; font-weight: 800; }
+.underdog-dd { font-size: 12.5px; color: var(--red); font-weight: 700; }
+.underdog-stats { font-size: 12.5px; color: var(--muted); margin-bottom: 8px; }
+.underdog-analysis { font-size: 14px; }
+.underdog-top3 { margin-top: 8px; font-size: 12px; color: var(--muted); }
 .home-trade { padding: 14px 16px; }
 .home-trade-body { display: flex; align-items: baseline; gap: 8px; }
 .home-trade-side { font-weight: 800; font-size: 15px; }

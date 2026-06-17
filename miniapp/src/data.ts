@@ -357,6 +357,17 @@ async function reqJSON<T>(path: string, method = "GET"): Promise<T> {
 
 export const apiFeed = () => reqJSON<Draft[]>("/api/feed");
 
+// ── «Нелюбимчик недели» (премиум; free видит тизер) ──
+export interface UnderdogStats {
+  ticker: string; score: number; price: number; dd: number;
+  rsi: number | null; ret7: number; ret30: number; belowSma200: boolean;
+}
+export interface Underdog {
+  locked: boolean; weekId?: string; ticker?: string | null; score?: number;
+  stats?: UnderdogStats; analysis?: string; top3?: UnderdogStats[]; teaser?: string;
+}
+export const apiUnderdog = () => reqJSON<Underdog>("/api/underdog");
+
 // ── Главная (домашняя сводка) ──
 export interface HomeMood { value: number; label: string; prev: number; trend: "up" | "down" | "flat"; }
 export interface HomeDigest { id: number; ts: number; text: string; }

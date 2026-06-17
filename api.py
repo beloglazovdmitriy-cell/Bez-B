@@ -758,6 +758,24 @@ def bezb_index_endpoint():
         raise HTTPException(status_code=502, detail=f"Индекс недоступен: {e}")
 
 
+@app.get("/api/underdog")
+def underdog_endpoint(x_init_data: str | None = Header(default=None)):
+    """«Нелюбимчик недели» — премиум. Free видит только тизер (locked)."""
+    try:
+        import underdog
+        data = underdog.current(build_if_stale=True)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Недоступно: {e}")
+    if not data or not data.get("ticker"):
+        return {"locked": False, "ticker": None}
+    if _is_premium(x_init_data):
+        return {"locked": False, **data}
+    # тизер для бесплатных: фича есть, актив и разбор скрыты
+    return {"locked": True, "weekId": data.get("weekId"),
+            "teaser": "🔎 Нелюбимчик недели готов — самый перепроданный актив по фильтрам "
+                      "«Без Б» с честным разбором за и против. Открой в премиуме."}
+
+
 class FeedbackReq(BaseModel):
     name: str = ""
     phone: str = ""

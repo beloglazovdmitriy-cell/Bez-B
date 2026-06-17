@@ -5,6 +5,7 @@ import {
 } from "../data";
 import { IconFeed, IconLogo } from "../components/Icons";
 import HomeHeader from "../components/HomeHeader";
+import UnderdogCard from "../components/UnderdogCard";
 
 const LABEL: Record<string, string> = {
   digest: "📰 Дайджест", ta: "📐 Теханализ", crowd: "🌡 Разбор толпы", scenarios: "🔮 Сценарии",
@@ -131,6 +132,7 @@ export default function FeedScreen({ isAdmin = false }: { isAdmin?: boolean }) {
   return (
     <div className="content">
       <HomeHeader />
+      <UnderdogCard />
       {loading ? (
         <div className="muted-note">Загружаю ленту…</div>
       ) : err ? (
