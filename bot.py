@@ -394,6 +394,15 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     pass
         except Exception:
             log.exception("referral start failed")
+    # учёт источника трафика: /start src_<метка> (реклама/взаимопиар)
+    elif context.args and context.args[0].startswith("src_"):
+        try:
+            tag = "".join(c for c in context.args[0][4:][:32]
+                          if c.isalnum() or c in "_-").lower()
+            if tag:
+                storage.source_track(f"u{update.effective_user.id}", tag)
+        except Exception:
+            log.exception("source track failed")
     is_admin = _is_admin(update.effective_user.id)
     await update.message.reply_text(
         WELCOME, parse_mode=ParseMode.MARKDOWN, reply_markup=kb_reply())
@@ -405,6 +414,30 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     rows += kb_main(is_admin).inline_keyboard
     await update.message.reply_text(
         "Открой приложение или выбери раздел:", reply_markup=InlineKeyboardMarkup(rows))
+
+
+async def cmd_sources(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Статистика источников трафика (только владелец). /sources"""
+    if not _is_admin(update.effective_user.id):
+        return
+    rows = storage.source_stats()
+    bot_user = config.BOT_USERNAME
+    lines = ["📊 *Источники трафика*\n"]
+    if not rows:
+        lines.append("Пока пусто. Раздавай ссылки с метками — увидишь, что работает.")
+    else:
+        total = sum(r["total"] for r in rows)
+        prem = sum(r["premium"] for r in rows)
+        lines.append(f"Всего: {total} пришло, {prem} стали премиумом.\n")
+        for r in rows:
+            cr = f" · {r['premium']}💎" if r["premium"] else ""
+            lines.append(f"`{r['src']}` — {r['total']} чел.{cr}")
+    lines.append(
+        "\n_Как метить: для каждой рекламы/взаимопиара дай свою ссылку_\n"
+        f"`https://t.me/{bot_user}?start=src_метка`\n"
+        "_Напр. src\\_chan1, src\\_vk, src\\_blogX. Веди платный трафик НА БОТА "
+        "(он трекается и сам отправит в канал и приложение), а не сразу в канал._")
+    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
 
 
 async def cmd_portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1329,6 +1362,7 @@ def main():
     )
     app.add_handler(CommandHandler(["start", "help", "menu"], cmd_start))
     app.add_handler(CommandHandler(["portfolio", "p"], cmd_portfolio))
+    app.add_handler(CommandHandler("sources", cmd_sources))
     app.add_handler(CallbackQueryHandler(on_callback))
     app.add_handler(PreCheckoutQueryHandler(on_pre_checkout))
     app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, on_successful_payment))

@@ -1396,3 +1396,45 @@ def meta_set(key: str, value) -> None:
             conn.commit()
         finally:
             conn.close()
+
+
+# ──────────────── учёт источников трафика (?start=src_<метка>) ────────────────
+# Откуда пришёл юзер: каждое рекламное/взаимопиар-размещение — своя метка.
+# За юзером закрепляется ПЕРВЫЙ источник (INSERT OR IGNORE).
+
+def _ensure_sources(conn):
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS source_hits ("
+        "uid TEXT PRIMARY KEY, src TEXT NOT NULL, ts INTEGER NOT NULL)")
+
+
+def source_track(uid: str, src: str) -> None:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_sources(conn)
+            conn.execute(
+                "INSERT OR IGNORE INTO source_hits (uid, src, ts) VALUES (?, ?, ?)",
+                (uid, src, int(time.time())))
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def source_stats() -> list:
+    """[{src, total, premium}] по источникам, по убыванию total."""
+    now = int(time.time())
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_sources(conn)
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS premium (uid TEXT PRIMARY KEY, until_ts INTEGER)")
+            rows = conn.execute(
+                "SELECT sh.src, COUNT(*), "
+                "SUM(CASE WHEN p.until_ts > ? THEN 1 ELSE 0 END) "
+                "FROM source_hits sh LEFT JOIN premium p ON p.uid = sh.uid "
+                "GROUP BY sh.src ORDER BY COUNT(*) DESC", (now,)).fetchall()
+            return [{"src": r[0], "total": r[1], "premium": r[2] or 0} for r in rows]
+        finally:
+            conn.close()
