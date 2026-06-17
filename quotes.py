@@ -152,12 +152,18 @@ def _fetch_live(ticker: str) -> float:
             return _fetch_binance(base)
         except Exception:
             return _fetch_yfinance(f"{base}-USD")   # фолбэк
-    # акции/ETF США: Finnhub (если есть ключ), затем yfinance
+    # тикер не в списке известной крипты — это может быть как акция США, так и
+    # криптовалюта, которой просто нет в CRYPTO_SYMBOLS (напр. TWT). Поэтому:
+    # сначала акции (Finnhub), затем Binance как крипта, затем yfinance.
     if _FINNHUB_KEY:
         try:
             return _fetch_finnhub(base)
         except Exception:
             pass
+    try:
+        return _fetch_binance(base)        # вдруг это коин с Binance ({BASE}USDT)
+    except Exception:
+        pass
     return _fetch_yfinance(base)
 
 

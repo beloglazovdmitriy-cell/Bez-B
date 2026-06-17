@@ -8,7 +8,7 @@ export default function WelcomeModal({ onClose }: { onClose: () => void }) {
         <div className="welcome-logo">
           Bez <IconLogo size={32} className="brand-btc" />
         </div>
-        <div className="welcome-head">Капитал с нуля — публично</div>
+        <div className="welcome-head">Инвестиции — это просто</div>
 
         <div className="manifesto">
           <div><b>Без</b> обещаний иксов</div>
@@ -17,7 +17,8 @@ export default function WelcomeModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <p className="welcome-text">
-          Здесь я открыто строю инвестпортфель и показываю каждый шаг: покупки,
+          Я веду публичный портфель для тебя — чтобы показать на живом примере,
+          что инвестировать просто и по силам каждому. Каждый шаг открыт: покупки,
           продажи, ошибки и результат в ₽ и $. А ты можешь следить, считать свой
           план и повторять стратегию под свой капитал.
         </p>
