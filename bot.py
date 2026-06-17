@@ -422,22 +422,25 @@ async def cmd_sources(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     rows = storage.source_stats()
     bot_user = config.BOT_USERNAME
-    lines = ["📊 *Источники трафика*\n"]
+    lines = ["📊 Источники трафика", ""]
     if not rows:
         lines.append("Пока пусто. Раздавай ссылки с метками — увидишь, что работает.")
     else:
         total = sum(r["total"] for r in rows)
         prem = sum(r["premium"] for r in rows)
-        lines.append(f"Всего: {total} пришло, {prem} стали премиумом.\n")
+        lines.append(f"Всего: {total} пришло, {prem} стали премиумом.")
+        lines.append("")
         for r in rows:
-            cr = f" · {r['premium']}💎" if r["premium"] else ""
-            lines.append(f"`{r['src']}` — {r['total']} чел.{cr}")
-    lines.append(
-        "\n_Как метить: для каждой рекламы/взаимопиара дай свою ссылку_\n"
-        f"`https://t.me/{bot_user}?start=src_метка`\n"
-        "_Напр. src\\_chan1, src\\_vk, src\\_blogX. Веди платный трафик НА БОТА "
-        "(он трекается и сам отправит в канал и приложение), а не сразу в канал._")
-    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
+            cr = f" · {r['premium']} 💎" if r["premium"] else ""
+            lines.append(f"• {r['src']} — {r['total']} чел.{cr}")
+    lines += [
+        "",
+        "Как метить: для каждой рекламы/взаимопиара дай свою ссылку вида",
+        f"https://t.me/{bot_user}?start=src_метка",
+        "(напр. src_chan1, src_vk, src_blogX).",
+        "Веди платный трафик НА БОТА — он трекается и сам отправит в канал и приложение,",
+        "а не сразу в канал. Строка channel = переходы из канала в приложение."]
+    await update.message.reply_text("\n".join(lines))
 
 
 async def cmd_portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
