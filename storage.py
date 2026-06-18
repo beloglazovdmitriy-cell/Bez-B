@@ -1479,6 +1479,57 @@ def source_track(uid: str, src: str) -> None:
             conn.close()
 
 
+# ──────────────── лог визитов (каждый заход, для /stats) ────────────────
+
+def _ensure_visits(conn):
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS visits ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT NOT NULL, name TEXT, "
+        "kind TEXT, ts INTEGER NOT NULL)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_visits_uid ON visits(uid)")
+
+
+def visit_log(uid: str, name: str = "", kind: str = "start") -> None:
+    """Зафиксировать ОДИН заход (без дедупа): kind 'start' (бот) / 'app' (Mini App)."""
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_visits(conn)
+            conn.execute(
+                "INSERT INTO visits (uid, name, kind, ts) VALUES (?, ?, ?, ?)",
+                (uid, (name or "")[:64], kind, int(time.time())))
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def visit_stats() -> dict:
+    """Сводка заходов: всего/уников/сегодня/7д + разбивка по пользователям."""
+    now = int(time.time())
+    today = now // 86400
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_visits(conn)
+            total = conn.execute("SELECT COUNT(*) FROM visits").fetchone()[0]
+            users = conn.execute("SELECT COUNT(DISTINCT uid) FROM visits").fetchone()[0]
+            today_n = conn.execute(
+                "SELECT COUNT(*) FROM visits WHERE ts/86400=?", (today,)).fetchone()[0]
+            week_n = conn.execute(
+                "SELECT COUNT(*) FROM visits WHERE ts>=?", (now - 7 * 86400,)).fetchone()[0]
+            rows = conn.execute(
+                "SELECT uid, COUNT(*) AS v, MAX(ts) AS last, COUNT(DISTINCT ts/86400) AS days, "
+                "(SELECT name FROM visits v2 WHERE v2.uid=visits.uid AND name<>'' "
+                " ORDER BY ts DESC LIMIT 1) AS nm "
+                "FROM visits GROUP BY uid ORDER BY last DESC", ).fetchall()
+            by_user = [{"uid": r[0], "visits": r[1], "lastTs": r[2],
+                        "days": r[3], "name": r[4] or ""} for r in rows]
+            return {"totalVisits": total, "totalUsers": users,
+                    "today": today_n, "week": week_n, "byUser": by_user}
+        finally:
+            conn.close()
+
+
 def source_stats() -> list:
     """[{src, total, premium}] по источникам, по убыванию total."""
     now = int(time.time())

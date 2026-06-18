@@ -380,6 +380,12 @@ WELCOME = (
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
+    # учёт захода в бота (каждый /start)
+    try:
+        u = update.effective_user
+        storage.visit_log(f"u{u.id}", u.full_name or u.username or "", "start")
+    except Exception:
+        log.exception("visit_log failed")
     # реферальный диплинк: /start ref_<id>
     if context.args and context.args[0].startswith("ref_"):
         try:
@@ -445,6 +451,28 @@ async def cmd_sources(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "(напр. src_chan1, src_vk, src_blogX).",
         "Веди платный трафик НА БОТА — он трекается и сам отправит в канал и приложение,",
         "а не сразу в канал. Строка channel = переходы из канала в приложение."]
+    await update.message.reply_text("\n".join(lines))
+
+
+async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Статистика заходов: кто и сколько раз заходил (только владелец). /stats"""
+    if not _is_admin(update.effective_user.id):
+        return
+    st = storage.visit_stats()
+    lines = ["📊 Заходы в «Без Б»", ""]
+    lines.append(f"👥 Пользователей: {st['totalUsers']}")
+    lines.append(f"🚪 Всего заходов: {st['totalVisits']}")
+    lines.append(f"📅 Сегодня: {st['today']} · за 7 дней: {st['week']}")
+    if not st["byUser"]:
+        lines += ["", "Пока пусто — учёт включён, данные появятся с первыми заходами."]
+    else:
+        lines += ["", "Кто заходил (свежие сверху):"]
+        for r in st["byUser"][:25]:
+            when = datetime.fromtimestamp(r["lastTs"]).strftime("%d.%m")
+            who = r["name"] or r["uid"]
+            lines.append(f"• {who} — {r['visits']} зах. · {r['days']} дн. · посл. {when}")
+        if len(st["byUser"]) > 25:
+            lines.append(f"…и ещё {len(st['byUser']) - 25}")
     await update.message.reply_text("\n".join(lines))
 
 
@@ -1413,6 +1441,7 @@ def main():
     app.add_handler(CommandHandler(["start", "help", "menu"], cmd_start))
     app.add_handler(CommandHandler(["portfolio", "p"], cmd_portfolio))
     app.add_handler(CommandHandler("sources", cmd_sources))
+    app.add_handler(CommandHandler("stats", cmd_stats))
     app.add_handler(CallbackQueryHandler(on_callback))
     app.add_handler(PreCheckoutQueryHandler(on_pre_checkout))
     app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, on_successful_payment))

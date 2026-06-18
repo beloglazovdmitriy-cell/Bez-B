@@ -16,11 +16,11 @@ export default function App() {
   const [welcome, setWelcome] = useState(() => !localStorage.getItem("bezb_welcomed"));
   const data = useAppData(pf);
 
-  // отметить ежедневный визит (стрик входов) + источник перехода (start_param)
+  // отметить ежедневный визит (стрик входов) + учёт захода/источника (start_param)
   useEffect(() => {
     apiStreakPing().catch(() => {});
     const sp = (window as any).Telegram?.WebApp?.initDataUnsafe?.start_param;
-    if (sp) apiAppOpen(String(sp)).catch(() => {});
+    apiAppOpen(sp ? String(sp) : "").catch(() => {});   // вызываем всегда — учёт каждого открытия
   }, []);
 
   function closeWelcome() {

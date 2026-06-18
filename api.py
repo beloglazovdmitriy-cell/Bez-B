@@ -830,12 +830,18 @@ def bezb_index_endpoint():
 def app_open(src: str = "", x_init_data: str | None = Header(default=None)):
     """Зафиксировать открытие мини-аппа с меткой источника (start_param).
     Источник закрепляется за юзером (первый побеждает) — для статистики /sources."""
-    uid = _resolve_user(x_init_data).get("id")
-    if uid and src:
-        tag = src[4:] if src.startswith("src_") else src
-        tag = "".join(c for c in tag[:32] if c.isalnum() or c in "_-").lower()
-        if tag:
-            storage.source_track(f"u{uid}", tag)
+    u = _resolve_user(x_init_data)
+    uid = u.get("id")
+    if uid:
+        try:
+            storage.visit_log(f"u{uid}", u.get("name") or "", "app")   # учёт захода в Mini App
+        except Exception:
+            pass
+        if src:
+            tag = src[4:] if src.startswith("src_") else src
+            tag = "".join(c for c in tag[:32] if c.isalnum() or c in "_-").lower()
+            if tag:
+                storage.source_track(f"u{uid}", tag)
     return {"ok": True}
 
 
