@@ -592,6 +592,8 @@ def content_generate(kind: str, x_init_data: str | None = Header(default=None)):
     try:
         if kind == "digest":
             text = ai.market_digest(_bezb_digest_ctx())
+        elif kind == "news":
+            text = ai.news_bezb()
         elif kind == "scenarios":
             storage.use_uid("bezb")
             text = ai.scenarios(_ai_portfolio_data("bezb"))
@@ -600,7 +602,7 @@ def content_generate(kind: str, x_init_data: str | None = Header(default=None)):
             text = ai.crowd_post(market_mood.context())
         elif kind == "ta":
             text = ai.ta_bezb("BTCUSDT", "1d")
-        elif kind in ("edu", "manifest", "bullshit", "psych", "case"):
+        elif kind in ("edu", "manifest", "bullshit", "psych", "case", "fun", "personal"):
             text = ai.content_post(kind)
         elif kind.startswith("promo_"):
             text = ai.convert_post(kind)

@@ -1178,10 +1178,11 @@ _KIND_LABEL = {
     "digest": "📰 Дайджест", "scenarios": "🔮 Сценарии", "edu": "📚 Ликбез",
     "manifest": "🧭 Манифест", "bullshit": "🚩 Детектор буллшита",
     "crowd": "🌡 Разбор толпы", "ta": "📐 Теханализ", "psych": "🧠 Психология",
-    "case": "💡 Кейс",
+    "case": "💡 Кейс", "news": "📰 Новости", "fun": "😄 Развлекательный",
+    "personal": "🙋 Личное",
     "promo_underdog": "🎯 Промо: Нелюбимчик", "promo_ai": "🎯 Промо: AI-разбор",
     "promo_speed": "🎯 Промо: скорость", "promo_alert": "🎯 Промо: алерты",
-    "promo_sandbox": "🎯 Промо: песочница",
+    "promo_sandbox": "🎯 Промо: песочница", "promo_results": "🎯 Промо: итоги+оффер",
 }
 
 
@@ -1195,6 +1196,8 @@ async def _make_draft(context: ContextTypes.DEFAULT_TYPE, kind: str):
         storage.use_uid("bezb")
         if kind == "digest":
             text = await asyncio.to_thread(ai.digest_bezb)
+        elif kind == "news":
+            text = await asyncio.to_thread(ai.news_bezb)
         elif kind == "scenarios":
             text = await asyncio.to_thread(ai.scenarios_bezb)
         elif kind == "crowd":
@@ -1216,38 +1219,68 @@ async def _make_draft(context: ContextTypes.DEFAULT_TYPE, kind: str):
             text = await asyncio.to_thread(ai.convert_post, kind)
         else:
             text = await asyncio.to_thread(ai.content_post, kind)
+        text = _with_brand(kind, text)
         storage.use_uid("bezb")
         d = storage.add_draft(kind, text)
         log.info("планировщик: черновик %s готов (id=%s)", kind, d)
         if config.ADMIN_ID:
+            hint = ("\n🖼 Это продающий пост — приложи СКРИН из Mini App "
+                    "(портфель / AI-разбор / журнал) при публикации."
+                    if kind in _NEEDS_APP_SCREEN else "")
             await context.bot.send_message(
                 config.ADMIN_ID,
                 f"🗂 Готов черновик «{_KIND_LABEL.get(kind, kind)}».\n"
-                "Открой приложение → Профиль → Контент-студия, проверь и опубликуй.")
+                "Открой приложение → Профиль → Контент-студия, проверь и опубликуй." + hint)
     except Exception:
         log.exception("планировщик: не удалось подготовить черновик %s", kind)
 
 
-# Утренняя ротация экспертных рубрик по дням недели (Пн..Вс)
-_MORNING_ROTATION = ["digest", "edu", "crowd", "bullshit", "scenarios", "ta", "psych"]
-# Вечер: чередуем опрос ↔ конверсию через день, каждый со своей ротацией
-_EVENING_POLLS = ["poll_decision", "poll_predict", "poll_choose", "poll_mood"]
-_EVENING_PROMOS = ["promo_underdog", "promo_ai", "promo_speed", "promo_alert", "promo_sandbox"]
+# ───────── Недельная сетка-воронка (Пн..Вс) ─────────
+# Утро = ценность/авторитет (TOFU/MOFU), вечер = вовлечение/продажа (ENGAGE/BOFU).
+# Воронка повторяется каждую неделю и ведёт к продаже в воскресенье (итоги + оффер).
+# weekday(): 0=Пн … 6=Вс. (morning_kind, evening_kind).
+_WEEK_FUNNEL = {
+    0: ("news",      "poll_predict"),   # Пн  📰 Новости недели · 🗳 Прогноз недели
+    1: ("edu",       "promo_ai"),       # Вт  📚 Ликбез · 🎯 Продажа: AI-разбор (+скрин)
+    2: ("crowd",     "poll_decision"),  # Ср  🌡 Разбор толпы · 🗳 Что бы ты сделал
+    3: ("bullshit",  "promo_speed"),    # Чт  🚩 Детектор Б · 🎯 Продажа: скорость (+скрин)
+    4: ("scenarios", "fun"),            # Пт  🔮 Сценарии · 😄 Развлекательный
+    5: ("psych",     "poll_mood"),      # Сб  🧠 Психология · 🗳 Настроение/вопросы
+    6: ("personal",  "promo_results"),  # Вс  🙋 Личное · 🎯 Итоги Без Б + оффер (низ воронки)
+}
+# Продающие рубрики, к которым стоит приложить скрин из Mini App при публикации.
+_NEEDS_APP_SCREEN = {"promo_ai", "promo_speed", "promo_results", "promo_underdog", "promo_sandbox"}
+# «Фирменные» рубрики, которые помечаем бренд-знаком (≈2 поста в неделю): воскресные
+# «Личное» и «Итоги+оффер». Знак — config.BRAND_SIGNATURE (по умолч. «🪙 Без Б»).
+_BRAND_KINDS = {"personal", "promo_results"}
+
+
+def _with_brand(kind: str, text: str) -> str:
+    """Подписать «фирменные» посты бренд-знаком. Не дублируем, если уже есть."""
+    if kind not in _BRAND_KINDS or not text:
+        return text
+    sig = (config.BRAND_SIGNATURE or "").strip()
+    if not sig or sig in text or config.BRAND_MARK in text:
+        return text
+    # Ставим подпись над финальным дисклеймером «Не ИИР.», если он есть.
+    low = text.rstrip()
+    marker = "Не ИИР"
+    idx = low.rfind(marker)
+    if idx > 0:
+        head, tail = low[:idx].rstrip(), low[idx:]
+        return f"{head}\n\n{sig}\n{tail}"
+    return f"{low}\n\n{sig}"
 
 
 async def job_content_morning(context: ContextTypes.DEFAULT_TYPE):
-    """Утро: экспертный пост дня по ротации (каждый день своя рубрика)."""
-    kind = _MORNING_ROTATION[datetime.now().weekday() % len(_MORNING_ROTATION)]
+    """Утро: ценностный/авторитетный пост дня по недельной воронке."""
+    kind = _WEEK_FUNNEL[datetime.now().weekday()][0]
     await _make_draft(context, kind)
 
 
 async def job_content_evening(context: ContextTypes.DEFAULT_TYPE):
-    """Вечер: чётный день — опрос (вовлечение), нечётный — конверсия (к премиуму)."""
-    day = datetime.now().timetuple().tm_yday
-    if day % 2 == 0:
-        kind = _EVENING_POLLS[(day // 2) % len(_EVENING_POLLS)]
-    else:
-        kind = _EVENING_PROMOS[(day // 2) % len(_EVENING_PROMOS)]
+    """Вечер: вовлечение или продажа по недельной воронке."""
+    kind = _WEEK_FUNNEL[datetime.now().weekday()][1]
     await _make_draft(context, kind)
 
 

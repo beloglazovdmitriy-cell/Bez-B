@@ -6,23 +6,28 @@ import {
 import { IconAI, IconChannel } from "./Icons";
 
 // Утро — экспертные посты (ценность, доверие)
+// Утро — ценность/авторитет (верх воронки): новости, аналитика, обучение, развлечение
 const EXPERT: { kind: string; label: string }[] = [
-  { kind: "digest", label: "📰 Дайджест" },
+  { kind: "news", label: "📰 Новости" },
+  { kind: "digest", label: "📊 Дайджест" },
   { kind: "crowd", label: "🌡 Разбор толпы" },
   { kind: "scenarios", label: "🔮 Сценарии" },
   { kind: "ta", label: "📐 Теханализ" },
   { kind: "edu", label: "📚 Ликбез" },
   { kind: "bullshit", label: "🚩 Детектор Б" },
-  { kind: "manifest", label: "🧭 Манифест" },
   { kind: "psych", label: "🧠 Психология" },
   { kind: "case", label: "💡 Кейс" },
+  { kind: "fun", label: "😄 Развлекательный" },
+  { kind: "manifest", label: "🧭 Манифест" },
+  { kind: "personal", label: "🙋 Личное" },
 ];
-// Вечер — вовлечение (опросы) и конверсия (к премиуму)
+// Вечер — вовлечение (опросы) и продажа (низ воронки → премиум, со скрином Mini App)
 const ENGAGE: { kind: string; label: string }[] = [
   { kind: "poll_decision", label: "🗳 Что бы ты сделал?" },
   { kind: "poll_predict", label: "🗳 BTC выше/ниже?" },
   { kind: "poll_choose", label: "🗳 Что разобрать?" },
   { kind: "poll_mood", label: "🗳 Страшно/жадно?" },
+  { kind: "promo_results", label: "🎯 Итоги + оффер" },
   { kind: "promo_underdog", label: "🎯 Нелюбимчик" },
   { kind: "promo_ai", label: "🎯 AI-разбор" },
   { kind: "promo_speed", label: "🎯 Скорость" },
@@ -30,13 +35,14 @@ const ENGAGE: { kind: string; label: string }[] = [
   { kind: "promo_sandbox", label: "🎯 Песочница" },
 ];
 const LABEL: Record<string, string> = {
-  digest: "📰 Дайджест", ta: "📐 Теханализ", crowd: "🌡 Разбор толпы", scenarios: "🔮 Сценарии",
-  edu: "📚 Ликбез", manifest: "🧭 Манифест", bullshit: "🚩 Детектор буллшита",
-  psych: "🧠 Психология", case: "💡 Кейс", trade: "🧠 Сделка", custom: "✍️ Моя тема",
+  news: "📰 Новости", digest: "📊 Дайджест", ta: "📐 Теханализ", crowd: "🌡 Разбор толпы",
+  scenarios: "🔮 Сценарии", edu: "📚 Ликбез", manifest: "🧭 Манифест",
+  bullshit: "🚩 Детектор буллшита", psych: "🧠 Психология", case: "💡 Кейс",
+  fun: "😄 Развлекательный", personal: "🙋 Личное", trade: "🧠 Сделка", custom: "✍️ Моя тема",
   poll: "🗳 Опрос",
-  promo_underdog: "🎯 Промо · Нелюбимчик", promo_ai: "🎯 Промо · AI-разбор",
-  promo_speed: "🎯 Промо · Скорость", promo_alert: "🎯 Промо · Алерты",
-  promo_sandbox: "🎯 Промо · Песочница",
+  promo_results: "🎯 Промо · Итоги+оффер", promo_underdog: "🎯 Промо · Нелюбимчик",
+  promo_ai: "🎯 Промо · AI-разбор", promo_speed: "🎯 Промо · Скорость",
+  promo_alert: "🎯 Промо · Алерты", promo_sandbox: "🎯 Промо · Песочница",
 };
 
 // Распарсить черновик-опрос (kind "poll", text = JSON {question, options}).
