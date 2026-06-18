@@ -419,6 +419,9 @@ export async function apiContentPublish(
   }
   return res.json();
 }
+export const apiZenGenerate = (kind: string) =>
+  reqJSON<Draft>(`/api/zen/generate?kind=${kind}`, "POST");
+export const apiZenCustom = (topic: string) => postJSON("/api/zen/custom", { topic });
 export const apiContentDelete = (id: number) => reqJSON<{ ok: boolean }>(`/api/content/delete?id=${id}`, "POST");
 export const apiContentUpdate = (id: number, text: string) => postJSON(`/api/content/update?id=${id}`, { text });
 export const apiContentCustom = (topic: string) => postJSON("/api/content/custom", { topic });

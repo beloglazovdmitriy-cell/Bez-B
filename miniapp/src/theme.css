@@ -456,6 +456,8 @@ body {
 .index-disc { font-size: 11px; color: var(--muted); margin-top: 2px; }
 /* Нелюбимчик недели */
 .section-head { font-size: 13px; font-weight: 800; color: var(--text); margin: 6px 2px 2px; }
+.zen-title { font-size: 15px; font-weight: 800; line-height: 1.3; margin-bottom: 6px; color: var(--text); }
+.zen-body { max-height: 220px; overflow: auto; }
 
 /* Квиз дня «Детектор буллшита» */
 .daily-quiz { padding: 14px 16px; }

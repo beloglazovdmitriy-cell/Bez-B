@@ -665,6 +665,42 @@ def content_custom(req: TopicReq, x_init_data: str | None = Header(default=None)
     return storage.add_draft("custom", text)
 
 
+# ───────── Конвейер Дзена: генерация статей-лонгридов (только владелец) ─────────
+
+def _zen_store(art: dict):
+    import json as _json
+    return storage.add_draft("zen", _json.dumps(art, ensure_ascii=False))
+
+
+@app.post("/api/zen/generate")
+def zen_generate(kind: str = "", x_init_data: str | None = Header(default=None)):
+    """Сгенерировать статью Дзена по рубрике. Черновик kind='zen' (text=JSON{title,body})."""
+    _require_owner(x_init_data)
+    _ai_or_503()
+    try:
+        art = ai.zen_article(kind=kind)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"AI временно недоступен: {e}")
+    return _zen_store(art)
+
+
+@app.post("/api/zen/custom")
+def zen_custom(req: TopicReq, x_init_data: str | None = Header(default=None)):
+    """Статья Дзена по своей теме (только владелец)."""
+    _require_owner(x_init_data)
+    _ai_or_503()
+    topic = (req.topic or "").strip()
+    if not topic:
+        raise HTTPException(status_code=400, detail="Пустая тема")
+    try:
+        art = ai.zen_article(topic=topic)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"AI временно недоступен: {e}")
+    return _zen_store(art)
+
+
 # "bez" — фирменная реакция-логотип «Без Б» (рисуется монетой на фронте).
 REACTIONS = ["bez", "🔥", "👍"]
 

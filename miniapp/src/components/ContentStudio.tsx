@@ -1,10 +1,27 @@
 import { useEffect, useState } from "react";
 import {
   apiContentGenerate, apiContentDrafts, apiContentPublish, apiContentDelete,
-  apiContentUpdate, apiContentCustom, apiContentPlan,
+  apiContentUpdate, apiContentCustom, apiContentPlan, apiZenGenerate, apiZenCustom,
   type Draft, type ContentPlan,
 } from "../data";
 import { IconAI, IconChannel } from "./Icons";
+
+// Конвейер Дзена — статьи-лонгриды (публикуются копипастом в Дзен).
+const ZEN: { kind: string; label: string }[] = [
+  { kind: "zen_scam", label: "🚩 Разоблачение" },
+  { kind: "zen_story", label: "🙋 Личный путь" },
+  { kind: "zen_pain", label: "💸 Болевая тема" },
+  { kind: "zen_explain", label: "📚 Объяснение" },
+  { kind: "zen_mistakes", label: "⚠️ Ошибки новичка" },
+];
+
+function parseZen(text: string): { title: string; body: string } | null {
+  try {
+    const z = JSON.parse(text);
+    if (z && typeof z.title === "string" && typeof z.body === "string") return z;
+  } catch { /* не статья */ }
+  return null;
+}
 
 // Ручная генерация ВНЕ плана. Экспертные (утро) — ценность/авторитет.
 const EXPERT: { kind: string; label: string }[] = [
@@ -64,6 +81,9 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
   const [editText, setEditText] = useState("");
   const [topic, setTopic] = useState("");                     // своя тема/задача
   const [showManual, setShowManual] = useState(false);        // блок ручной генерации свёрнут
+  const [showZen, setShowZen] = useState(false);              // конвейер Дзена свёрнут
+  const [zenTopic, setZenTopic] = useState("");               // своя тема статьи Дзена
+  const [copied, setCopied] = useState("");                   // что скопировано (фидбэк)
   const [noChart, setNoChart] = useState<Record<number, boolean>>({});
   const [useCard, setUseCard] = useState<Record<number, boolean>>({});
   const [noCta, setNoCta] = useState<Record<number, boolean>>({});
@@ -101,6 +121,26 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
       });
       setNote("Опубликовано в канал ✓"); refresh();
     } catch (e) { setNote((e as Error).message); }
+  }
+  async function genZen(kind: string) {
+    setBusy(kind); setNote("");
+    try { await apiZenGenerate(kind); refresh(); }
+    catch (e) { setNote((e as Error).message); }
+    finally { setBusy(""); }
+  }
+  async function genZenCustom() {
+    const t = zenTopic.trim();
+    if (!t) { setNote("Опиши тему статьи"); return; }
+    setBusy("zen_custom"); setNote("");
+    try { await apiZenCustom(t); setZenTopic(""); refresh(); }
+    catch (e) { setNote((e as Error).message); }
+    finally { setBusy(""); }
+  }
+  async function copyText(text: string, what: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(what); setTimeout(() => setCopied(""), 1500);
+    } catch { setNote("Не удалось скопировать"); }
   }
   async function remove(id: number) {
     try { await apiContentDelete(id); refresh(); } catch (e) { setNote((e as Error).message); }
@@ -147,13 +187,13 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
         <div className="field-label">Черновики на публикацию</div>
         {loading ? (
           <div className="muted-note">Загружаю…</div>
-        ) : drafts.length === 0 ? (
+        ) : drafts.filter((d) => d.kind !== "zen").length === 0 ? (
           <div className="muted-note">
             Пусто. Бот подготовит по плану — или сделай внеплановый пост ниже.
           </div>
         ) : (
           <div className="feed">
-            {drafts.map((d) => (
+            {drafts.filter((d) => d.kind !== "zen").map((d) => (
               <div className="card draft" key={d.id}>
                 <div className="draft-kind">{LABEL[d.kind] || d.kind}</div>
                 {editId === d.id ? (
@@ -265,6 +305,64 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
               style={{ marginTop: 8 }}>
               <IconAI size={16} /> {busy === "custom" ? "Создаю…" : "Создать по моей теме"}
             </button>
+          </>
+        )}
+
+        {/* ── Конвейер Дзена: статьи-лонгриды (копипаст в Дзен) ── */}
+        <button className="chip" style={{ width: "100%", marginTop: 14, marginBottom: 8 }}
+          onClick={() => setShowZen((v) => !v)}>
+          {showZen ? "▲ Скрыть Дзен-статьи" : "📝 Дзен-статьи (лонгриды)"}
+        </button>
+        {showZen && (
+          <>
+            <div className="muted-note" style={{ marginBottom: 8 }}>
+              AI пишет статью под Дзен (заголовок + текст на дочитывания + мягкий призыв в канал).
+              Сгенерируй → скопируй → вставь в редактор Дзена.
+            </div>
+            <div className="field-label">Рубрика статьи</div>
+            <div className="chips" style={{ marginBottom: 10 }}>
+              {ZEN.map((r) => (
+                <button key={r.kind} className="chip" disabled={!!busy}
+                  onClick={() => genZen(r.kind)}>
+                  {busy === r.kind ? "…" : r.label}
+                </button>
+              ))}
+            </div>
+            <div className="field-label">Своя тема статьи</div>
+            <textarea className="draft-edit" rows={3} value={zenTopic}
+              placeholder="Напр.: как я считаю риск по портфелю и почему не верю прогнозам"
+              onChange={(e) => setZenTopic(e.target.value)} style={{ minHeight: 70 }} />
+            <button className="cta" disabled={!!busy} onClick={genZenCustom}
+              style={{ marginTop: 8, marginBottom: 8 }}>
+              <IconAI size={16} /> {busy === "zen_custom" ? "Пишу статью…" : "Написать статью по теме"}
+            </button>
+
+            {drafts.filter((d) => d.kind === "zen").length > 0 && (
+              <>
+                <div className="field-label">Готовые статьи</div>
+                <div className="feed">
+                  {drafts.filter((d) => d.kind === "zen").map((d) => {
+                    const z = parseZen(d.text);
+                    if (!z) return null;
+                    return (
+                      <div className="card draft" key={d.id}>
+                        <div className="zen-title">{z.title}</div>
+                        <div className="ai-text draft-text zen-body">{z.body}</div>
+                        <div className="draft-actions">
+                          <button className="chip" onClick={() => copyText(z.title, `t${d.id}`)}>
+                            {copied === `t${d.id}` ? "Скопировано ✓" : "📋 Заголовок"}
+                          </button>
+                          <button className="chip" onClick={() => copyText(z.body, `b${d.id}`)}>
+                            {copied === `b${d.id}` ? "Скопировано ✓" : "📋 Текст"}
+                          </button>
+                          <button className="chip" onClick={() => remove(d.id)}>Удалить</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </>
         )}
 
