@@ -455,10 +455,31 @@ body {
 .index-row-detail { font-size: 11px; color: var(--muted); white-space: nowrap; }
 .index-disc { font-size: 11px; color: var(--muted); margin-top: 2px; }
 /* Нелюбимчик недели */
+.section-head { font-size: 13px; font-weight: 800; color: var(--text); margin: 6px 2px 2px; }
+
+/* Квиз дня «Детектор буллшита» */
+.daily-quiz { padding: 14px 16px; }
+.dq-text { font-size: 15px; line-height: 1.45; margin: 6px 0 12px; }
+.dq-actions { display: flex; gap: 10px; }
+.dq-btn { flex: 1; padding: 11px; border-radius: 12px; font-size: 14px; font-weight: 700;
+  border: 1px solid var(--border); cursor: pointer; }
+.dq-btn.bs { background: rgba(239,83,80,.12); color: #ef5350; border-color: rgba(239,83,80,.4); }
+.dq-btn.ok { background: rgba(38,166,154,.12); color: var(--accent); border-color: rgba(38,166,154,.4); }
+.dq-btn:disabled { opacity: .55; cursor: default; }
+.dq-result { margin-top: 4px; }
+.dq-verdict { font-size: 14px; font-weight: 800; margin-bottom: 6px; }
+.dq-verdict.right { color: var(--accent); }
+.dq-verdict.wrong { color: #ef5350; }
+.dq-explain { font-size: 14px; line-height: 1.45; color: var(--text); }
+.dq-stats { margin-top: 10px; font-size: 12.5px; color: var(--muted); }
+
 .underdog { padding: 14px 16px; }
 .underdog-locked { border: 1px dashed var(--accent); background: rgba(38,166,154,.07); }
 .underdog-teaser { font-size: 14px; margin: 4px 0 8px; }
 .underdog-cta { font-size: 12.5px; font-weight: 700; color: var(--accent); }
+.underdog-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; background: none; border: none; padding: 0; cursor: pointer; text-align: left; }
+.underdog-chev { color: var(--muted); font-size: 11px; }
 .underdog-head { display: flex; align-items: baseline; gap: 10px; margin: 2px 0 4px; }
 .underdog-ticker { font-size: 22px; font-weight: 800; }
 .underdog-dd { font-size: 12.5px; color: var(--red); font-weight: 700; }
@@ -475,6 +496,7 @@ body {
 .home-digest { padding: 14px 16px; }
 .home-digest-text { line-height: 1.5; white-space: pre-wrap;
   display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+.home-digest-text.open { -webkit-line-clamp: unset; overflow: visible; }
 
 /* ── Журнал: лента ── */
 .feed { display: flex; flex-direction: column; gap: 10px; }

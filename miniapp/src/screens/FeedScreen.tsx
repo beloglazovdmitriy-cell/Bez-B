@@ -6,6 +6,9 @@ import {
 import { IconFeed, IconLogo } from "../components/Icons";
 import HomeHeader from "../components/HomeHeader";
 import UnderdogCard from "../components/UnderdogCard";
+import DailyQuiz from "../components/DailyQuiz";
+import PredictCard from "../components/PredictCard";
+import DcaStreak from "../components/DcaStreak";
 
 const LABEL: Record<string, string> = {
   digest: "📰 Дайджест", ta: "📐 Теханализ", crowd: "🌡 Разбор толпы", scenarios: "🔮 Сценарии",
@@ -132,6 +135,10 @@ export default function FeedScreen({ isAdmin = false }: { isAdmin?: boolean }) {
   return (
     <div className="content">
       <HomeHeader />
+      <div className="section-head">🎯 Активности дня</div>
+      <DailyQuiz />
+      <PredictCard />
+      <DcaStreak />
       <UnderdogCard />
       {loading ? (
         <div className="muted-note">Загружаю ленту…</div>

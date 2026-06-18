@@ -763,13 +763,21 @@ def home():
                     "prev": f["prev"], "trend": arrow}
     except Exception:
         pass
-    # 2) «Рынок за 60 сек» — последний опубликованный дайджест из ленты
+    # 2) «Рынок за 60 сек» — авто-кэш (обновляется джобой раз в сутки), фолбэк —
+    #    последний опубликованный дайджест из ленты.
     digest = None
     try:
-        for d in storage.list_published():
-            if d.get("kind") == "digest":
-                digest = {"id": d["id"], "ts": d["ts"], "text": d["text"]}
-                break
+        import json as _json
+        raw = storage.meta_get("home_digest")
+        if raw:
+            cd = _json.loads(raw)
+            if cd.get("text"):
+                digest = {"id": 0, "ts": cd.get("ts", 0), "text": cd["text"]}
+        if not digest:
+            for d in storage.list_published():
+                if d.get("kind") == "digest":
+                    digest = {"id": d["id"], "ts": d["ts"], "text": d["text"]}
+                    break
     except Exception:
         pass
     # 3) Что сделал Без Б сегодня (последняя сделка публичного портфеля)
@@ -1458,6 +1466,53 @@ def quiz_reset(x_init_data: str | None = Header(default=None)):
         raise HTTPException(status_code=401, detail="Откройте приложение из Telegram")
     storage.quiz_reset_answered(f"u{uid}")
     return {"ok": True}
+
+
+class QuizDailyReq(BaseModel):
+    bs: bool          # ответ игрока на карточку дня: True = «это буллшит»
+
+
+def _quiz_today_card():
+    """Карточка дня — одна для всех, ротация по дню (как событие дня)."""
+    import time as _time
+    import quiz_data
+    day = int(_time.time()) // 86400
+    qs = quiz_data.QUESTIONS
+    return day, qs[day % len(qs)]
+
+
+@app.get("/api/quiz/today")
+def quiz_today(x_init_data: str | None = Header(default=None)):
+    """Карточка дня «Детектор буллшита» + статистика. Если уже отвечал сегодня —
+    отдаём разбор и мой ответ (для показа результата)."""
+    day, card = _quiz_today_card()
+    uid = _resolve_user(x_init_data).get("id")
+    st = storage.quiz_daily_get(f"u{uid}") if uid else {
+        "lastDay": 0, "lastChoice": None, "lastCorrect": None,
+        "streak": 0, "best": 0, "correct": 0, "total": 0}
+    answered = bool(uid) and st["lastDay"] == day
+    resp = {"card": {"id": card["id"], "text": card["text"]},
+            "answeredToday": answered, "anon": not uid,
+            "stats": {"streak": st["streak"], "best": st["best"],
+                      "correct": st["correct"], "total": st["total"]}}
+    if answered:
+        resp["result"] = {"bs": card["bs"], "explain": card["explain"],
+                          "myChoice": bool(st["lastChoice"]), "correct": st["lastCorrect"]}
+    return resp
+
+
+@app.post("/api/quiz/today/answer")
+def quiz_today_answer(req: QuizDailyReq, x_init_data: str | None = Header(default=None)):
+    """Ответ на карточку дня (1 раз в сутки). Возвращает разбор + обновлённую серию."""
+    uid = _resolve_user(x_init_data).get("id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Откройте приложение из Telegram")
+    day, card = _quiz_today_card()
+    st = storage.quiz_daily_answer(f"u{uid}", day, req.bs, card["bs"])
+    return {"correct": (req.bs == card["bs"]), "bs": card["bs"], "explain": card["explain"],
+            "myChoice": req.bs,
+            "stats": {"streak": st["streak"], "best": st["best"],
+                      "correct": st["correct"], "total": st["total"]}}
 
 
 # ──────────────── игра «Прогноз недели» ────────────────

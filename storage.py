@@ -420,6 +420,64 @@ def quiz_reset_answered(uid: str) -> None:
             conn.close()
 
 
+# ──────────────── квиз дня «Детектор буллшита» (1 карточка в сутки) ────────────────
+
+def _ensure_quiz_daily(conn):
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS quiz_daily ("
+        "uid TEXT PRIMARY KEY, last_day INTEGER, last_choice INTEGER, "
+        "last_correct INTEGER, streak INTEGER, best INTEGER, correct INTEGER, total INTEGER)")
+
+
+def quiz_daily_get(uid: str) -> dict:
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_quiz_daily(conn)
+            r = conn.execute(
+                "SELECT last_day, last_choice, last_correct, streak, best, correct, total "
+                "FROM quiz_daily WHERE uid=?", (uid,)).fetchone()
+        finally:
+            conn.close()
+    if not r:
+        return {"lastDay": 0, "lastChoice": None, "lastCorrect": None,
+                "streak": 0, "best": 0, "correct": 0, "total": 0}
+    return {"lastDay": r[0], "lastChoice": r[1],
+            "lastCorrect": None if r[2] is None else bool(r[2]),
+            "streak": r[3], "best": r[4], "correct": r[5], "total": r[6]}
+
+
+def quiz_daily_answer(uid: str, day: int, choice_bs: bool, key_bs: bool) -> dict:
+    """Зафиксировать ответ на карточку дня. Один ответ в сутки (повтор — no-op).
+    Серия — по последовательным дням (вернулся и ответил)."""
+    st = quiz_daily_get(uid)
+    if st["lastDay"] == day:
+        return st                       # уже отвечал сегодня — не двоим
+    correct = (choice_bs == key_bs)
+    st["streak"] = st["streak"] + 1 if st["lastDay"] == day - 1 else 1
+    st["best"] = max(st["best"], st["streak"])
+    st["correct"] += 1 if correct else 0
+    st["total"] += 1
+    st["lastDay"], st["lastChoice"], st["lastCorrect"] = day, int(choice_bs), correct
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_quiz_daily(conn)
+            conn.execute(
+                "INSERT INTO quiz_daily (uid, last_day, last_choice, last_correct, "
+                "streak, best, correct, total) VALUES (?,?,?,?,?,?,?,?) "
+                "ON CONFLICT(uid) DO UPDATE SET last_day=excluded.last_day, "
+                "last_choice=excluded.last_choice, last_correct=excluded.last_correct, "
+                "streak=excluded.streak, best=excluded.best, correct=excluded.correct, "
+                "total=excluded.total",
+                (uid, day, int(choice_bs), int(correct), st["streak"], st["best"],
+                 st["correct"], st["total"]))
+            conn.commit()
+        finally:
+            conn.close()
+    return st
+
+
 # ──────────────── реферальная программа ────────────────
 
 def _ensure_referrals(conn):

@@ -38,9 +38,17 @@ function Gauge({ value }: { value: number }) {
   );
 }
 
+function fmtDate(ts: number): string {
+  if (!ts) return "";
+  const d = new Date(ts * 1000), n = new Date();
+  if (d.toDateString() === n.toDateString()) return "сегодня";
+  return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
+}
+
 export default function HomeHeader() {
   const [h, setH] = useState<Home | null>(null);
   const [openBreak, setOpenBreak] = useState(false);
+  const [openDigest, setOpenDigest] = useState(false);
 
   useEffect(() => { apiHome().then(setH).catch(() => setH(null)); }, []);
 
@@ -57,7 +65,7 @@ export default function HomeHeader() {
             <div className="home-mood-side">
               <div className="home-cap"><IconLogo size={14} /> Индекс Без Б · режим рынка</div>
               <div className="home-mood-label" style={{ color: moodColor(bi.value) }}>{bi.label}</div>
-              <div className="home-mood-prev">0 — страх · 100 — эйфория</div>
+              <div className="home-mood-prev">0 — перепроданность · 100 — перегрев</div>
             </div>
           </div>
           <button className="index-toggle" onClick={() => setOpenBreak((v) => !v)}>
@@ -105,8 +113,15 @@ export default function HomeHeader() {
 
       {h?.digest && (
         <div className="card home-digest">
-          <div className="home-cap">📰 Рынок за 60 секунд</div>
-          <div className="ai-text home-digest-text">{h.digest.text}</div>
+          <div className="home-cap">
+            📰 Рынок за 60 секунд{h.digest.ts ? ` · обновлено ${fmtDate(h.digest.ts)}` : ""}
+          </div>
+          <div className={"ai-text home-digest-text" + (openDigest ? " open" : "")}>
+            {h.digest.text}
+          </div>
+          <button className="index-toggle" onClick={() => setOpenDigest((v) => !v)}>
+            {openDigest ? "Свернуть ▲" : "Читать полностью ▼"}
+          </button>
         </div>
       )}
     </div>

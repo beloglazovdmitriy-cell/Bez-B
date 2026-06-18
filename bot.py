@@ -1280,6 +1280,22 @@ async def job_content_evening(context: ContextTypes.DEFAULT_TYPE):
     await _make_draft(context, kind)
 
 
+async def job_home_digest(context: ContextTypes.DEFAULT_TYPE):
+    """Раз в сутки обновляет «Рынок за 60 сек» на главной (кэш в meta, НЕ зависит
+    от ручных публикаций — раньше блок висел старый, пока владелец не опубликует)."""
+    if not ai.available():
+        return
+    try:
+        import json as _json, time as _time
+        text = await asyncio.to_thread(ai.digest_bezb)
+        if text and text.strip():
+            storage.meta_set("home_digest", _json.dumps(
+                {"ts": int(_time.time()), "text": text.strip()}, ensure_ascii=False))
+            log.info("Главная: «Рынок за 60 сек» обновлён (%d симв.)", len(text))
+    except Exception:
+        log.exception("job_home_digest failed")
+
+
 async def job_alerts(context: ContextTypes.DEFAULT_TYPE):
     """Умные предупреждения о рынке (премиум). Проверяет пороги перегрева/паники/
     резкого движения и шлёт пуш премиум-подписчикам. Антиспам — кулдаун в alerts."""
@@ -1410,6 +1426,8 @@ def main():
         # контент-конвейер: 2 черновика в день на ревью — утром эксперт, вечером опрос/конверсия
         jq.run_daily(job_content_morning, time=dtime(hour=_MORNING_HOUR, tzinfo=_MSK))
         jq.run_daily(job_content_evening, time=dtime(hour=_EVENING_HOUR, tzinfo=_MSK))
+        # «Рынок за 60 сек» на главной — обновляем каждое утро (до утреннего поста)
+        jq.run_daily(job_home_digest, time=dtime(hour=8, minute=30, tzinfo=_MSK))
         jq.run_daily(job_price_snapshot, time=dtime(hour=_PRICE_SNAPSHOT_HOUR, minute=50, tzinfo=_MSK))
         jq.run_daily(job_predict_weekly, time=dtime(hour=_PREDICT_HOUR, tzinfo=_MSK))
         jq.run_daily(job_daily_reminder, time=dtime(hour=_REMIND_HOUR, tzinfo=_MSK))

@@ -140,6 +140,17 @@ export const apiQuizNext = () => reqJSON<QuizNext>("/api/quiz/next");
 export const apiQuizAnswer = (qid: number, bs: boolean) =>
   postJSONr<QuizResult>("/api/quiz/answer", { qid, bs });
 export const apiQuizReset = () => postJSONr<{ ok: boolean }>("/api/quiz/reset", {});
+// Квиз дня — одна карточка в сутки на главной
+export interface QuizDayStats { streak: number; best: number; correct: number; total: number; }
+export interface QuizDayResult { bs: boolean; explain: string; myChoice: boolean; correct: boolean | null; }
+export interface QuizToday {
+  card: { id: number; text: string }; answeredToday: boolean; anon: boolean;
+  stats: QuizDayStats; result?: QuizDayResult;
+}
+export interface QuizDayAnswer extends QuizDayResult { stats: QuizDayStats; }
+export const apiQuizToday = () => reqJSON<QuizToday>("/api/quiz/today");
+export const apiQuizTodayAnswer = (bs: boolean) =>
+  postJSONr<QuizDayAnswer>("/api/quiz/today/answer", { bs });
 
 // ── игра «Прогноз недели» ──
 export interface PredRound {
