@@ -12,6 +12,11 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 from datetime import time as dtime, datetime, timedelta
+from zoneinfo import ZoneInfo
+
+# ВАЖНО: PTB JobQueue по умолчанию планирует наивные времена в UTC, а не в TZ ОС.
+# Поэтому ВСЕ run_daily ниже получают tzinfo=_MSK, иначе «09:00» = 09:00 UTC = 12:00 MSK.
+_MSK = ZoneInfo("Europe/Moscow")
 
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup,
@@ -1081,8 +1086,8 @@ async def job_weekly(context: ContextTypes.DEFAULT_TYPE):
 # «Контент-студии», затем шлёт владельцу пинг «готово». Авто-публикации НЕТ —
 # владелец проверяет и публикует вручную (draft-on-review).
 # Час утренних/дневных джоб настраивается через env (время сервера).
-_MORNING_HOUR = int(os.getenv("CONTENT_MORNING_HOUR", "9"))    # утро — экспертный пост
-_EVENING_HOUR = int(os.getenv("CONTENT_EVENING_HOUR", "19"))   # вечер — опрос/конверсия
+_MORNING_HOUR = config.CONTENT_MORNING_HOUR    # утро — экспертный пост (MSK)
+_EVENING_HOUR = config.CONTENT_EVENING_HOUR    # вечер — опрос/конверсия (MSK)
 _PRICE_SNAPSHOT_HOUR = int(os.getenv("PRICE_SNAPSHOT_HOUR", "23"))  # снимок цен (после US-закрытия, MSK)
 _PREDICT_HOUR = int(os.getenv("PREDICT_HOUR", "10"))               # прогноз недели — Пн
 _REMIND_HOUR = int(os.getenv("REMIND_HOUR", "19"))                 # вечернее напоминание
@@ -1236,18 +1241,9 @@ async def _make_draft(context: ContextTypes.DEFAULT_TYPE, kind: str):
 
 
 # ───────── Недельная сетка-воронка (Пн..Вс) ─────────
-# Утро = ценность/авторитет (TOFU/MOFU), вечер = вовлечение/продажа (ENGAGE/BOFU).
-# Воронка повторяется каждую неделю и ведёт к продаже в воскресенье (итоги + оффер).
-# weekday(): 0=Пн … 6=Вс. (morning_kind, evening_kind).
-_WEEK_FUNNEL = {
-    0: ("news",      "poll_predict"),   # Пн  📰 Новости недели · 🗳 Прогноз недели
-    1: ("edu",       "promo_ai"),       # Вт  📚 Ликбез · 🎯 Продажа: AI-разбор (+скрин)
-    2: ("crowd",     "poll_decision"),  # Ср  🌡 Разбор толпы · 🗳 Что бы ты сделал
-    3: ("bullshit",  "promo_speed"),    # Чт  🚩 Детектор Б · 🎯 Продажа: скорость (+скрин)
-    4: ("scenarios", "fun"),            # Пт  🔮 Сценарии · 😄 Развлекательный
-    5: ("psych",     "poll_mood"),      # Сб  🧠 Психология · 🗳 Настроение/вопросы
-    6: ("personal",  "promo_results"),  # Вс  🙋 Личное · 🎯 Итоги Без Б + оффер (низ воронки)
-}
+# Единый источник — config.CONTENT_WEEK_PLAN (его же отдаёт /api/content/plan в студию).
+# Утро = ценность/авторитет, вечер = вовлечение/продажа; ведёт к продаже в воскресенье.
+_WEEK_FUNNEL = config.CONTENT_WEEK_PLAN
 # Продающие рубрики, к которым стоит приложить скрин из Mini App при публикации.
 _NEEDS_APP_SCREEN = {"promo_ai", "promo_speed", "promo_results", "promo_underdog", "promo_sandbox"}
 # «Фирменные» рубрики, которые помечаем бренд-знаком (≈2 поста в неделю): воскресные
@@ -1412,16 +1408,16 @@ def main():
             job_weekly, interval=timedelta(days=7),
             first=_seconds_until_next_sunday_18())
         # контент-конвейер: 2 черновика в день на ревью — утром эксперт, вечером опрос/конверсия
-        jq.run_daily(job_content_morning, time=dtime(hour=_MORNING_HOUR))
-        jq.run_daily(job_content_evening, time=dtime(hour=_EVENING_HOUR))
-        jq.run_daily(job_price_snapshot, time=dtime(hour=_PRICE_SNAPSHOT_HOUR, minute=50))
-        jq.run_daily(job_predict_weekly, time=dtime(hour=_PREDICT_HOUR))
-        jq.run_daily(job_daily_reminder, time=dtime(hour=_REMIND_HOUR))
+        jq.run_daily(job_content_morning, time=dtime(hour=_MORNING_HOUR, tzinfo=_MSK))
+        jq.run_daily(job_content_evening, time=dtime(hour=_EVENING_HOUR, tzinfo=_MSK))
+        jq.run_daily(job_price_snapshot, time=dtime(hour=_PRICE_SNAPSHOT_HOUR, minute=50, tzinfo=_MSK))
+        jq.run_daily(job_predict_weekly, time=dtime(hour=_PREDICT_HOUR, tzinfo=_MSK))
+        jq.run_daily(job_daily_reminder, time=dtime(hour=_REMIND_HOUR, tzinfo=_MSK))
         # умные предупреждения о рынке (премиум) — проверка каждые N часов
         jq.run_repeating(job_alerts,
                          interval=timedelta(hours=_ALERT_INTERVAL_HOURS), first=120)
         # «Нелюбимчик недели» (премиум) — Пн утром
-        jq.run_daily(job_underdog_weekly, time=dtime(hour=_UNDERDOG_HOUR))
+        jq.run_daily(job_underdog_weekly, time=dtime(hour=_UNDERDOG_HOUR, tzinfo=_MSK))
         log.info("Контент: утро %02d:00 экспертный пост, вечер %02d:00 опрос/конверсия.",
                  _MORNING_HOUR, _EVENING_HOUR)
     else:

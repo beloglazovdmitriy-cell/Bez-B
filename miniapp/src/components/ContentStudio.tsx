@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import {
   apiContentGenerate, apiContentDrafts, apiContentPublish, apiContentDelete,
-  apiContentUpdate, apiContentCustom, type Draft,
+  apiContentUpdate, apiContentCustom, apiContentPlan,
+  type Draft, type ContentPlan,
 } from "../data";
 import { IconAI, IconChannel } from "./Icons";
 
-// Утро — экспертные посты (ценность, доверие)
-// Утро — ценность/авторитет (верх воронки): новости, аналитика, обучение, развлечение
+// Ручная генерация ВНЕ плана. Экспертные (утро) — ценность/авторитет.
 const EXPERT: { kind: string; label: string }[] = [
   { kind: "news", label: "📰 Новости" },
   { kind: "digest", label: "📊 Дайджест" },
@@ -21,7 +21,7 @@ const EXPERT: { kind: string; label: string }[] = [
   { kind: "manifest", label: "🧭 Манифест" },
   { kind: "personal", label: "🙋 Личное" },
 ];
-// Вечер — вовлечение (опросы) и продажа (низ воронки → премиум, со скрином Mini App)
+// Вовлечение (опросы) и продажа (низ воронки → премиум, со скрином/карточкой Mini App).
 const ENGAGE: { kind: string; label: string }[] = [
   { kind: "poll_decision", label: "🗳 Что бы ты сделал?" },
   { kind: "poll_predict", label: "🗳 BTC выше/ниже?" },
@@ -56,13 +56,16 @@ function parsePoll(text: string): { question: string; options: string[] } | null
 
 export default function ContentStudio({ onClose }: { onClose: () => void }) {
   const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [plan, setPlan] = useState<ContentPlan | null>(null);
   const [busy, setBusy] = useState("");        // kind генерации в работе
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
   const [editId, setEditId] = useState<number | null>(null);  // id черновика в правке
   const [editText, setEditText] = useState("");
   const [topic, setTopic] = useState("");                     // своя тема/задача
+  const [showManual, setShowManual] = useState(false);        // блок ручной генерации свёрнут
   const [noChart, setNoChart] = useState<Record<number, boolean>>({});
+  const [useCard, setUseCard] = useState<Record<number, boolean>>({});
   const [noCta, setNoCta] = useState<Record<number, boolean>>({});
   const [imgs, setImgs] = useState<Record<number, File | null>>({});
 
@@ -70,7 +73,11 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
     apiContentDrafts().then(setDrafts).catch((e) => setNote((e as Error).message))
       .finally(() => setLoading(false));
   }
-  useEffect(() => { refresh(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => {
+    refresh();
+    apiContentPlan().then(setPlan).catch(() => { /* план не критичен */ });
+    /* eslint-disable-next-line */
+  }, []);
 
   async function generate(kind: string) {
     setBusy(kind); setNote("");
@@ -90,7 +97,7 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
     setNote("Публикую…");
     try {
       await apiContentPublish(id, {
-        cta: !noCta[id], chart: !noChart[id], image: imgs[id] || null,
+        cta: !noCta[id], chart: !noChart[id], card: !!useCard[id], image: imgs[id] || null,
       });
       setNote("Опубликовано в канал ✓"); refresh();
     } catch (e) { setNote((e as Error).message); }
@@ -114,42 +121,36 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
         <div className="sheet-grip" />
         <div className="sheet-title"><IconAI size={20} /> Контент-студия</div>
 
-        <div className="field-label">Утро · экспертный пост</div>
-        <div className="chips" style={{ marginBottom: 12 }}>
-          {EXPERT.map((r) => (
-            <button key={r.kind} className="chip" disabled={!!busy}
-              onClick={() => generate(r.kind)}>
-              {busy === r.kind ? "…" : r.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="field-label">Вечер · вовлечение и конверсия</div>
-        <div className="chips" style={{ marginBottom: 12 }}>
-          {ENGAGE.map((r) => (
-            <button key={r.kind} className="chip" disabled={!!busy}
-              onClick={() => generate(r.kind)}>
-              {busy === r.kind ? "…" : r.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="field-label">Своя тема / задача</div>
-        <textarea className="draft-edit" rows={3} value={topic}
-          placeholder="Напр.: объясни, почему usd-cost-averaging спасает новичков от паники"
-          onChange={(e) => setTopic(e.target.value)} style={{ minHeight: 70 }} />
-        <button className="cta" disabled={!!busy} onClick={generateCustom}
-          style={{ marginTop: 8, marginBottom: 12 }}>
-          <IconAI size={16} /> {busy === "custom" ? "Создаю…" : "Создать по моей теме"}
-        </button>
+        {/* ── Недельный план: что бот готовит сам ── */}
+        {plan && (
+          <>
+            <div className="field-label">План на неделю · бот готовит сам</div>
+            <div className="muted-note" style={{ marginBottom: 8 }}>
+              Каждый день бот делает 2 черновика (утро {plan.morningHour}:00, вечер{" "}
+              {plan.eveningHour}:00 МСК) и пингует тебя в ЛС. В канал публикуешь ты — ниже.
+            </div>
+            <div className="plan-grid" style={{ marginBottom: 14 }}>
+              {plan.days.map((d) => (
+                <div key={d.day} className={"plan-row" + (d.isToday ? " today" : "")}>
+                  <div className="plan-dow">{d.dow}{d.isToday ? " ·" : ""}</div>
+                  <div className="plan-slot">🌅 {d.morning.label}</div>
+                  <div className="plan-slot">🌆 {d.evening.label}</div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
 
         {note && <div className="muted-note" style={{ marginBottom: 8 }}>{note}</div>}
 
-        <div className="field-label">Очередь черновиков</div>
+        {/* ── Черновики на публикацию (главное действие) ── */}
+        <div className="field-label">Черновики на публикацию</div>
         {loading ? (
           <div className="muted-note">Загружаю…</div>
         ) : drafts.length === 0 ? (
-          <div className="muted-note">Пусто. Сгенерируй черновик кнопкой выше.</div>
+          <div className="muted-note">
+            Пусто. Бот подготовит по плану — или сделай внеплановый пост ниже.
+          </div>
         ) : (
           <div className="feed">
             {drafts.map((d) => (
@@ -193,9 +194,15 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
                     <div className="ai-text draft-text">{d.text}</div>
                     <div className="pub-opts">
                       <label className="pub-opt">
-                        <input type="checkbox" checked={!noChart[d.id]}
+                        <input type="checkbox" checked={!noChart[d.id] && !useCard[d.id]}
+                          disabled={!!useCard[d.id]}
                           onChange={(e) => setNoChart({ ...noChart, [d.id]: !e.target.checked })} />
                         📊 График
+                      </label>
+                      <label className="pub-opt">
+                        <input type="checkbox" checked={!!useCard[d.id]}
+                          onChange={(e) => setUseCard({ ...useCard, [d.id]: e.target.checked })} />
+                        🪙 Карточка Без Б
                       </label>
                       <label className="pub-opt">
                         <input type="checkbox" checked={!noCta[d.id]}
@@ -203,7 +210,7 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
                         🔗 Кнопка бота
                       </label>
                       <label className="pub-opt file">
-                        🖼 {imgs[d.id] ? "Картинка ✓" : "Картинка"}
+                        🖼 {imgs[d.id] ? "Своя ✓" : "Своя картинка"}
                         <input type="file" accept="image/*" hidden
                           onChange={(e) => setImgs({ ...imgs, [d.id]: e.target.files?.[0] || null })} />
                       </label>
@@ -220,6 +227,45 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
               </div>
             ))}
           </div>
+        )}
+
+        {/* ── Внеплановый пост (ручная генерация, свёрнуто) ── */}
+        <button className="chip" style={{ width: "100%", marginTop: 14, marginBottom: 8 }}
+          onClick={() => setShowManual((v) => !v)}>
+          {showManual ? "▲ Скрыть внеплановый пост" : "➕ Сделать внеплановый пост"}
+        </button>
+        {showManual && (
+          <>
+            <div className="muted-note" style={{ marginBottom: 8 }}>
+              Это не нужно для плана выше — только если хочешь дополнительный пост вне расписания.
+            </div>
+            <div className="field-label">Экспертные (ценность)</div>
+            <div className="chips" style={{ marginBottom: 10 }}>
+              {EXPERT.map((r) => (
+                <button key={r.kind} className="chip" disabled={!!busy}
+                  onClick={() => generate(r.kind)}>
+                  {busy === r.kind ? "…" : r.label}
+                </button>
+              ))}
+            </div>
+            <div className="field-label">Опросы и продажа</div>
+            <div className="chips" style={{ marginBottom: 10 }}>
+              {ENGAGE.map((r) => (
+                <button key={r.kind} className="chip" disabled={!!busy}
+                  onClick={() => generate(r.kind)}>
+                  {busy === r.kind ? "…" : r.label}
+                </button>
+              ))}
+            </div>
+            <div className="field-label">Своя тема / задача</div>
+            <textarea className="draft-edit" rows={3} value={topic}
+              placeholder="Напр.: объясни, почему DCA спасает новичков от паники"
+              onChange={(e) => setTopic(e.target.value)} style={{ minHeight: 70 }} />
+            <button className="cta" disabled={!!busy} onClick={generateCustom}
+              style={{ marginTop: 8 }}>
+              <IconAI size={16} /> {busy === "custom" ? "Создаю…" : "Создать по моей теме"}
+            </button>
+          </>
         )}
 
         <button className="sheet-cancel" onClick={onClose}>Закрыть</button>

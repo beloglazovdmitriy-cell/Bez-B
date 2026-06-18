@@ -297,6 +297,16 @@ body {
 .pub-opt input { width: 15px; height: 15px; accent-color: var(--accent); }
 .pub-opt.file { color: var(--accent); }
 
+/* Недельный план-воронка в Контент-студии */
+.plan-grid { display: flex; flex-direction: column; gap: 4px; }
+.plan-row { display: grid; grid-template-columns: 34px 1fr 1fr; gap: 6px; align-items: center;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+  padding: 6px 8px; font-size: 12px; }
+.plan-row.today { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface-2)); }
+.plan-dow { font-weight: 700; color: var(--muted); }
+.plan-row.today .plan-dow { color: var(--accent); }
+.plan-slot { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 /* ── Песочница: сравнение DCA vs lump ── */
 .sand-compare { padding: 12px 16px; }
 .sc-row { display: flex; justify-content: space-between; align-items: center;

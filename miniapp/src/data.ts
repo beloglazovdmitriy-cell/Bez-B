@@ -383,12 +383,18 @@ export const apiHome = () => reqJSON<Home>("/api/home");
 export const apiContentGenerate = (kind: string) =>
   reqJSON<Draft>(`/api/content/generate?kind=${kind}`, "POST");
 export const apiContentDrafts = () => reqJSON<Draft[]>("/api/content/drafts");
+export interface PlanSlot { kind: string; label: string; }
+export interface PlanDay { day: number; dow: string; isToday: boolean; morning: PlanSlot; evening: PlanSlot; }
+export interface ContentPlan { today: number; morningHour: number; eveningHour: number; days: PlanDay[]; }
+export const apiContentPlan = () => reqJSON<ContentPlan>("/api/content/plan");
 export async function apiContentPublish(
-  id: number, opts: { cta?: boolean; chart?: boolean; image?: File | null } = {},
+  id: number,
+  opts: { cta?: boolean; chart?: boolean; card?: boolean; image?: File | null } = {},
 ): Promise<{ ok: boolean }> {
   const cta = opts.cta !== false;
   const chart = opts.chart !== false;
-  const url = `${API_BASE}/api/content/publish?id=${id}&cta=${cta}&chart=${chart}`;
+  const card = opts.card === true;
+  const url = `${API_BASE}/api/content/publish?id=${id}&cta=${cta}&chart=${chart}&card=${card}`;
   const init: RequestInit = { method: "POST", headers: { "X-Init-Data": initData() } };
   if (opts.image) {
     const fd = new FormData();

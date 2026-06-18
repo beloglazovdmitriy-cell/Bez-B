@@ -619,6 +619,37 @@ def content_generate(kind: str, x_init_data: str | None = Header(default=None)):
     return storage.add_draft(kind, text)
 
 
+_CONTENT_LABELS = {
+    "news": "📰 Новости", "digest": "📊 Дайджест", "crowd": "🌡 Разбор толпы",
+    "scenarios": "🔮 Сценарии", "ta": "📐 Теханализ", "edu": "📚 Ликбез",
+    "bullshit": "🚩 Детектор буллшита", "psych": "🧠 Психология", "case": "💡 Кейс",
+    "fun": "😄 Развлекательный", "manifest": "🧭 Манифест", "personal": "🙋 Личное",
+    "poll_predict": "🗳 Прогноз недели", "poll_decision": "🗳 Что бы ты сделал?",
+    "poll_choose": "🗳 Что разобрать?", "poll_mood": "🗳 Настроение рынка",
+    "promo_results": "🎯 Итоги + оффер", "promo_ai": "🎯 AI-разбор",
+    "promo_speed": "🎯 Скорость пушей", "promo_alert": "🎯 Алерты",
+    "promo_sandbox": "🎯 DCA-песочница", "promo_underdog": "🎯 Нелюбимчик",
+}
+_DOW_RU = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+
+
+@app.get("/api/content/plan")
+def content_plan(x_init_data: str | None = Header(default=None)):
+    """Недельный план-воронка для Контент-студии: что бот сам готовит по дням."""
+    _require_owner(x_init_data)
+    import datetime
+    today = datetime.datetime.now().weekday()
+    days = []
+    for d, (m, e) in sorted(config.CONTENT_WEEK_PLAN.items()):
+        days.append({
+            "day": d, "dow": _DOW_RU[d], "isToday": d == today,
+            "morning": {"kind": m, "label": _CONTENT_LABELS.get(m, m)},
+            "evening": {"kind": e, "label": _CONTENT_LABELS.get(e, e)},
+        })
+    return {"today": today, "morningHour": config.CONTENT_MORNING_HOUR,
+            "eveningHour": config.CONTENT_EVENING_HOUR, "days": days}
+
+
 @app.post("/api/content/custom")
 def content_custom(req: TopicReq, x_init_data: str | None = Header(default=None)):
     """Создать черновик по своей теме/задаче (только владелец)."""
@@ -1524,10 +1555,12 @@ def content_drafts(x_init_data: str | None = Header(default=None)):
 
 @app.post("/api/content/publish")
 async def content_publish(id: int, cta: bool = True, chart: bool = True,
+                          card: bool = False,
                           image: UploadFile | None = File(default=None),
                           x_init_data: str | None = Header(default=None)):
-    """Опубликовать черновик. cta — кнопка на бота; chart — приложить график
-    рубрики; image — своя картинка (имеет приоритет над графиком)."""
+    """Опубликовать черновик. cta — кнопка на бота; card — карточка портфеля Без Б
+    (как в Mini App); chart — график рубрики. Приоритет картинки: своя image >
+    card > chart."""
     _require_owner(x_init_data)
     if not config.CHANNEL_ID:
         raise HTTPException(status_code=400, detail="Канал не подключён")
@@ -1547,6 +1580,13 @@ async def content_publish(id: int, cta: bool = True, chart: bool = True,
     photo = None
     if image is not None:
         photo = await image.read()
+    elif card:
+        try:
+            import charts
+            storage.use_uid("bezb")
+            photo = charts.result_card(portfolio.summary())
+        except Exception:
+            photo = None
     elif chart:
         photo = _chart_for(d["kind"]) or _chart_for("portfolio")
     try:
