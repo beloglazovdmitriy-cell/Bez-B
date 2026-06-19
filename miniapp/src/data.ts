@@ -400,12 +400,11 @@ export interface ContentPlan { today: number; morningHour: number; eveningHour: 
 export const apiContentPlan = () => reqJSON<ContentPlan>("/api/content/plan");
 export async function apiContentPublish(
   id: number,
-  opts: { cta?: boolean; chart?: boolean; card?: boolean; image?: File | null } = {},
+  opts: { cta?: boolean; pic?: string; image?: File | null } = {},
 ): Promise<{ ok: boolean }> {
   const cta = opts.cta !== false;
-  const chart = opts.chart !== false;
-  const card = opts.card === true;
-  const url = `${API_BASE}/api/content/publish?id=${id}&cta=${cta}&chart=${chart}&card=${card}`;
+  const pic = opts.pic || "auto";
+  const url = `${API_BASE}/api/content/publish?id=${id}&cta=${cta}&pic=${pic}`;
   const init: RequestInit = { method: "POST", headers: { "X-Init-Data": initData() } };
   if (opts.image) {
     const fd = new FormData();

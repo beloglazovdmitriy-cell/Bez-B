@@ -545,6 +545,34 @@ def _chart_for(kind: str) -> bytes | None:
         return None
 
 
+def _pic_for(pic: str, kind: str) -> bytes | None:
+    """Картинка к посту по ВЫБРАННОМУ типу (а не одна на всё). 'auto' — график под
+    рубрику; иначе конкретный тип, выбранный в студии."""
+    import charts
+    try:
+        if pic in ("", "auto"):
+            return _chart_for(kind)
+        if pic == "none":
+            return None
+        if pic == "ta":
+            return charts.ta_chart("BTCUSDT", "1d")
+        if pic == "gauge":
+            import market_mood
+            f = market_mood.snapshot().get("fng")
+            return charts.fear_greed_gauge(f["value"], f.get("label_ru", "")) if f else None
+        if pic == "portfolio":
+            storage.use_uid("bezb")
+            return charts.composition_pie(portfolio.pie_slices(portfolio.summary()))
+        if pic == "index":
+            return charts.index_line()
+        if pic == "card":
+            storage.use_uid("bezb")
+            return charts.result_card(portfolio.summary())
+    except Exception:
+        return None
+    return None
+
+
 def _require_owner(init_data):
     if not _resolve_user(init_data)["isAdmin"]:
         raise HTTPException(status_code=403, detail="Только владелец")
@@ -1651,13 +1679,11 @@ def content_drafts(x_init_data: str | None = Header(default=None)):
 
 
 @app.post("/api/content/publish")
-async def content_publish(id: int, cta: bool = True, chart: bool = True,
-                          card: bool = False,
+async def content_publish(id: int, cta: bool = True, pic: str = "auto",
                           image: UploadFile | None = File(default=None),
                           x_init_data: str | None = Header(default=None)):
-    """Опубликовать черновик. cta — кнопка на бота; card — карточка портфеля Без Б
-    (как в Mini App); chart — график рубрики. Приоритет картинки: своя image >
-    card > chart."""
+    """Опубликовать черновик. cta — кнопка на бота; pic — ТИП картинки
+    (auto/ta/gauge/portfolio/index/card/none). Своя image имеет приоритет."""
     _require_owner(x_init_data)
     if not config.CHANNEL_ID:
         raise HTTPException(status_code=400, detail="Канал не подключён")
@@ -1674,18 +1700,7 @@ async def content_publish(id: int, cta: bool = True, chart: bool = True,
             raise HTTPException(status_code=502, detail=f"Не удалось опубликовать опрос: {e}")
         storage.set_draft_status(id, "published")
         return {"ok": True}
-    photo = None
-    if image is not None:
-        photo = await image.read()
-    elif card:
-        try:
-            import charts
-            storage.use_uid("bezb")
-            photo = charts.result_card(portfolio.summary())
-        except Exception:
-            photo = None
-    elif chart:
-        photo = _chart_for(d["kind"]) or _chart_for("portfolio")
+    photo = await image.read() if image is not None else _pic_for(pic, d["kind"])
     try:
         _channel_post(d["text"], photo, cta=cta)
     except Exception as e:

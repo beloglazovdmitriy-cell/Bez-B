@@ -15,6 +15,17 @@ const ZEN: { kind: string; label: string }[] = [
   { kind: "zen_mistakes", label: "⚠️ Ошибки новичка" },
 ];
 
+// Типы картинки к посту в канал (одиночный выбор под тему).
+const PIC_TYPES: { v: string; label: string }[] = [
+  { v: "auto", label: "Авто" },
+  { v: "ta", label: "📈 ТА BTC" },
+  { v: "gauge", label: "🌡 Страх/жадность" },
+  { v: "portfolio", label: "🥧 Портфель Без Б" },
+  { v: "index", label: "📊 Индекс" },
+  { v: "card", label: "🪙 Карточка" },
+  { v: "none", label: "🚫 Без картинки" },
+];
+
 function parseZen(text: string): { title: string; body: string } | null {
   try {
     const z = JSON.parse(text);
@@ -84,8 +95,7 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
   const [showZen, setShowZen] = useState(false);              // конвейер Дзена свёрнут
   const [zenTopic, setZenTopic] = useState("");               // своя тема статьи Дзена
   const [copied, setCopied] = useState("");                   // что скопировано (фидбэк)
-  const [noChart, setNoChart] = useState<Record<number, boolean>>({});
-  const [useCard, setUseCard] = useState<Record<number, boolean>>({});
+  const [picType, setPicType] = useState<Record<number, string>>({});
   const [noCta, setNoCta] = useState<Record<number, boolean>>({});
   const [imgs, setImgs] = useState<Record<number, File | null>>({});
 
@@ -117,7 +127,7 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
     setNote("Публикую…");
     try {
       await apiContentPublish(id, {
-        cta: !noCta[id], chart: !noChart[id], card: !!useCard[id], image: imgs[id] || null,
+        cta: !noCta[id], pic: picType[id] || "auto", image: imgs[id] || null,
       });
       setNote("Опубликовано в канал ✓"); refresh();
     } catch (e) { setNote((e as Error).message); }
@@ -232,25 +242,25 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
                 ) : (
                   <>
                     <div className="ai-text draft-text">{d.text}</div>
+                    <div className="muted-note" style={{ margin: "2px 0 4px" }}>Картинка:</div>
+                    <div className="chips" style={{ marginBottom: 8 }}>
+                      {PIC_TYPES.map((p) => (
+                        <button key={p.v}
+                          className={"chip" + ((picType[d.id] || "auto") === p.v ? " on" : "")}
+                          disabled={!!imgs[d.id]}
+                          onClick={() => setPicType({ ...picType, [d.id]: p.v })}>
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
                     <div className="pub-opts">
-                      <label className="pub-opt">
-                        <input type="checkbox" checked={!noChart[d.id] && !useCard[d.id]}
-                          disabled={!!useCard[d.id]}
-                          onChange={(e) => setNoChart({ ...noChart, [d.id]: !e.target.checked })} />
-                        📊 График
-                      </label>
-                      <label className="pub-opt">
-                        <input type="checkbox" checked={!!useCard[d.id]}
-                          onChange={(e) => setUseCard({ ...useCard, [d.id]: e.target.checked })} />
-                        🪙 Карточка Без Б
-                      </label>
                       <label className="pub-opt">
                         <input type="checkbox" checked={!noCta[d.id]}
                           onChange={(e) => setNoCta({ ...noCta, [d.id]: !e.target.checked })} />
                         🔗 Кнопка бота
                       </label>
                       <label className="pub-opt file">
-                        🖼 {imgs[d.id] ? "Своя ✓" : "Своя картинка"}
+                        🖼 {imgs[d.id] ? "Своя картинка ✓ (заменяет тип)" : "Своя картинка"}
                         <input type="file" accept="image/*" hidden
                           onChange={(e) => setImgs({ ...imgs, [d.id]: e.target.files?.[0] || null })} />
                       </label>
