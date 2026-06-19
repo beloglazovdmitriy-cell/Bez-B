@@ -568,6 +568,24 @@ def _pic_for(pic: str, kind: str) -> bytes | None:
         if pic == "card":
             storage.use_uid("bezb")
             return charts.result_card(portfolio.summary())
+        if pic == "analysis":
+            import time as _time, json as _json
+            txt = None
+            raw = storage.meta_get("bezb_analysis")
+            if raw:
+                try:
+                    c = _json.loads(raw)
+                    if _time.time() - c.get("ts", 0) < 86400:
+                        txt = c.get("text")
+                except Exception:
+                    pass
+            if not txt and ai.available():
+                storage.use_uid("bezb")
+                txt = ai.analyze_portfolio(_ai_portfolio_data("bezb"))
+                if txt:
+                    storage.meta_set("bezb_analysis", _json.dumps(
+                        {"ts": int(_time.time()), "text": txt}, ensure_ascii=False))
+            return charts.text_card("Разбор портфеля Без Б", txt) if txt else None
     except Exception:
         return None
     return None

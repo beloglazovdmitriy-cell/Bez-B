@@ -231,6 +231,42 @@ def result_card(s, channel_name="Без Б") -> bytes:
     return buf.read()
 
 
+def text_card(title: str, body: str, badge: str = "🤖 AI-разбор портфеля") -> bytes:
+    """Брендовая карточка-«экран» с текстом (как окно AI-разбора в Mini App). 4:5."""
+    import textwrap
+    fig = plt.figure(figsize=(8, 10))
+    fig.patch.set_facecolor("#0e1117")
+    # шапка-бренд
+    fig.text(0.08, 0.945, "БЕЗ Б", color="#ffffff", fontsize=30, fontweight="bold", va="top")
+    fig.text(0.08, 0.905, badge, color=_ACCENT, fontsize=15, va="top")
+    fig.add_artist(plt.Line2D([0.08, 0.92], [0.885, 0.885], color="#2a2e39", linewidth=1))
+    y = 0.85
+    if title:
+        for line in textwrap.wrap(title, 40)[:3]:
+            fig.text(0.08, y, line, color="#ffffff", fontsize=18, fontweight="bold", va="top")
+            y -= 0.038
+        y -= 0.012
+    # тело — переносим по абзацам, ограничиваем по высоте
+    lines = []
+    for para in (body or "").split("\n"):
+        p = para.strip()
+        if p:
+            lines += textwrap.wrap(p, 54)
+        else:
+            lines.append("")
+    max_lines = int((y - 0.08) / 0.026)
+    fig.text(0.08, y, "\n".join(lines[:max_lines]), color="#d1d4dc", fontsize=13.5,
+             va="top", linespacing=1.55)
+    # подвал
+    fig.text(0.5, 0.045, "t.me/BezBlogfin · аналитика, не сигнал · Не ИИР",
+             ha="center", color="#5a5e68", fontsize=12)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=135, facecolor="#0e1117")
+    plt.close(fig)
+    buf.seek(0)
+    return buf.read()
+
+
 def index_line() -> bytes:
     """График индекса Без Б в пунктах (старт 100)."""
     data = storage.load()

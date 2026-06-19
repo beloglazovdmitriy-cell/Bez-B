@@ -23,13 +23,18 @@ const PIC_TYPES: { v: string; label: string }[] = [
   { v: "portfolio", label: "🥧 Портфель Без Б" },
   { v: "index", label: "📊 Индекс" },
   { v: "card", label: "🪙 Карточка" },
+  { v: "analysis", label: "🤖 AI-разбор" },
   { v: "none", label: "🚫 Без картинки" },
 ];
 
-function parseZen(text: string): { title: string; body: string } | null {
+interface ZenArt {
+  title: string; body: string;
+  titles?: string[]; cover?: string; tags?: string[]; question?: string;
+}
+function parseZen(text: string): ZenArt | null {
   try {
     const z = JSON.parse(text);
-    if (z && typeof z.title === "string" && typeof z.body === "string") return z;
+    if (z && typeof z.title === "string" && typeof z.body === "string") return z as ZenArt;
   } catch { /* не статья */ }
   return null;
 }
@@ -356,14 +361,34 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
                     if (!z) return null;
                     return (
                       <div className="card draft" key={d.id}>
-                        <div className="zen-title">{z.title}</div>
+                        <div className="muted-note">Заголовки (выбери лучший):</div>
+                        {(z.titles && z.titles.length ? z.titles : [z.title]).map((t, i) => (
+                          <div className="zen-title-row" key={i}>
+                            <span className="zen-title">{t}</span>
+                            <button className="chip" onClick={() => copyText(t, `t${d.id}_${i}`)}>
+                              {copied === `t${d.id}_${i}` ? "✓" : "📋"}
+                            </button>
+                          </div>
+                        ))}
+                        {z.cover && (
+                          <div className="zen-meta">🖼 Обложка: <b>{z.cover}</b>
+                            <button className="chip" onClick={() => copyText(z.cover!, `c${d.id}`)}>
+                              {copied === `c${d.id}` ? "✓" : "📋"}
+                            </button>
+                          </div>
+                        )}
+                        {z.tags && z.tags.length > 0 && (
+                          <div className="zen-meta">🏷 Теги: {z.tags.join(", ")}
+                            <button className="chip" onClick={() => copyText(z.tags!.join(", "), `g${d.id}`)}>
+                              {copied === `g${d.id}` ? "✓" : "📋"}
+                            </button>
+                          </div>
+                        )}
+                        {z.question && <div className="zen-meta">💬 Вопрос: {z.question}</div>}
                         <div className="ai-text draft-text zen-body">{z.body}</div>
                         <div className="draft-actions">
-                          <button className="chip" onClick={() => copyText(z.title, `t${d.id}`)}>
-                            {copied === `t${d.id}` ? "Скопировано ✓" : "📋 Заголовок"}
-                          </button>
-                          <button className="chip" onClick={() => copyText(z.body, `b${d.id}`)}>
-                            {copied === `b${d.id}` ? "Скопировано ✓" : "📋 Текст"}
+                          <button className="cta" onClick={() => copyText(z.body, `b${d.id}`)}>
+                            {copied === `b${d.id}` ? "Скопировано ✓" : "📋 Текст статьи"}
                           </button>
                           <button className="chip" onClick={() => remove(d.id)}>Удалить</button>
                         </div>
