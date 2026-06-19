@@ -231,9 +231,20 @@ def result_card(s, channel_name="Без Б") -> bytes:
     return buf.read()
 
 
-def text_card(title: str, body: str, badge: str = "🤖 AI-разбор портфеля") -> bytes:
+import re as _re
+# matplotlib-шрифт (DejaVu) не рисует эмодзи → станут квадратиками; убираем их из карточек.
+_EMOJI_RE = _re.compile(
+    "[\U0001F000-\U0001FAFF\U00002600-\U000027BF\U00002B00-\U00002BFF️‍]")
+
+
+def _strip_emoji(s: str) -> str:
+    return _re.sub(r"[ ]{2,}", " ", _EMOJI_RE.sub("", s or "")).strip()
+
+
+def text_card(title: str, body: str, badge: str = "AI-разбор портфеля") -> bytes:
     """Брендовая карточка-«экран» с текстом (как окно AI-разбора в Mini App). 4:5."""
     import textwrap
+    title, body, badge = _strip_emoji(title), _strip_emoji(body), _strip_emoji(badge)
     fig = plt.figure(figsize=(8, 10))
     fig.patch.set_facecolor("#0e1117")
     # шапка-бренд
