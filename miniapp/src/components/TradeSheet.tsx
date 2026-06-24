@@ -1,10 +1,12 @@
-import { useState } from "react";
-import type { Summary, Pf } from "../data";
-import { apiBuy, apiSell, apiDeposit, apiWithdraw, apiDepositAsset } from "../data";
+import { useState, useEffect } from "react";
+import type { Summary, Pf, Quote } from "../data";
+import { apiBuy, apiSell, apiDeposit, apiWithdraw, apiDepositAsset, apiPrice } from "../data";
 import { fmtQty } from "./PositionsList";
 
 const money = (n: number) =>
   n.toLocaleString("ru-RU", { maximumFractionDigits: 0 }).replace(/,/g, " ");
+const fmtPx = (n: number) =>
+  n.toLocaleString("ru-RU", { maximumFractionDigits: n >= 100 ? 2 : 6 });
 
 export type Action = "buy" | "sell" | "deposit" | "withdraw";
 
@@ -41,10 +43,32 @@ export default function TradeSheet({
   const [depoMode, setDepoMode] = useState<"usdt" | "asset">("usdt");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [quoteErr, setQuoteErr] = useState(false);
+  const [priceTouched, setPriceTouched] = useState(false);
 
   const assetDepo = action === "deposit" && depoMode === "asset";
   const needsReason = action === "buy" || action === "sell";  // у пополнения причины нет
   const sellPos = summary.positions.find((p) => p.ticker === ticker);
+
+  // подтягиваем рыночную цену тикера при покупке / заводе актива (с дебаунсом)
+  useEffect(() => {
+    const tk = ticker.trim();
+    if (!(action === "buy" || assetDepo) || !tk) { setQuote(null); setQuoteErr(false); return; }
+    setQuote(null); setQuoteErr(false);
+    let alive = true;
+    const id = setTimeout(async () => {
+      try {
+        const q = await apiPrice(tk);
+        if (!alive) return;
+        setQuote(q);
+        if (assetDepo && !priceTouched) setPrice(String(q.price));  // авто-подстановка цены входа
+      } catch {
+        if (alive) setQuoteErr(true);
+      }
+    }, 400);
+    return () => { alive = false; clearTimeout(id); };
+  }, [ticker, action, assetDepo, priceTouched]);
 
   async function submit() {
     setError(""); setBusy(true);
@@ -104,6 +128,19 @@ export default function TradeSheet({
             <input className="inp" placeholder="Тикер, напр. BTC"
               value={ticker} onChange={(e) => setTicker(e.target.value.toUpperCase())} />
             <Chips items={TICKERS} active={ticker} onPick={setTicker} />
+            {ticker.trim() && (
+              <div className="muted-note" style={{ marginTop: 6 }}>
+                {quote ? (
+                  <>Цена ≈ <b>${fmtPx(quote.price)}</b>
+                    {quote.priceRub ? ` · ${money(quote.priceRub)} ₽` : ""} за 1 {quote.ticker}
+                    {Number(amount) > 0
+                      ? ` · получишь ≈ ${fmtQty(Number(amount) / quote.price)} шт` : ""}
+                  </>
+                ) : quoteErr
+                  ? "Цену подтянуть не удалось — впишется рыночная при подтверждении"
+                  : "Подтягиваю цену…"}
+              </div>
+            )}
           </Field>
         )}
         {action === "sell" && (
@@ -146,9 +183,10 @@ export default function TradeSheet({
                   value={amount} onChange={(e) => setAmount(e.target.value)} />
                 <Chips items={AMOUNTS.map(String)} active={amount} onPick={setAmount} />
               </Field>
-              <Field label="Цена входа, USDT (пусто = рыночная)">
+              <Field label="Цена входа, USDT (подтянута рыночная — можно изменить)">
                 <input className="inp" inputMode="decimal" placeholder="рыночная"
-                  value={price} onChange={(e) => setPrice(e.target.value)} />
+                  value={price}
+                  onChange={(e) => { setPriceTouched(true); setPrice(e.target.value); }} />
               </Field>
             </>
           )

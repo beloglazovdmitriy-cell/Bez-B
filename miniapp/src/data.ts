@@ -93,6 +93,14 @@ export const apiDeposit = (pf: Pf, b: { rub: number; rate: number }) =>
 export const apiWithdraw = (pf: Pf, b: { amountUsdt: number }) =>
   postJSON(`/api/withdraw?p=${pf}`, b);
 
+// текущая рыночная цена тикера (USDT + ₽) — для формы сделки
+export interface Quote { ticker: string; price: number; rate: number; priceRub: number | null; }
+export async function apiPrice(ticker: string): Promise<Quote> {
+  const res = await fetch(`${API_BASE}/api/price?ticker=${encodeURIComponent(ticker)}`);
+  if (!res.ok) throw new Error(String(res.status));
+  return res.json();
+}
+
 // ── сезон фэнтези-портфелей ──
 export interface Fantasy {
   season: { startTs: number; endTs: number };

@@ -297,6 +297,25 @@ def api_deposit_asset(req: AssetDepositReq, p: str = "bezb", x_init_data: str | 
     return _ok()
 
 
+@app.get("/api/price")
+def api_price(ticker: str):
+    """Текущая рыночная цена тикера в USDT + курс ₽ (для формы сделки)."""
+    from quotes import get_price_usd, get_usd_rub
+    t = (ticker or "").strip().upper()
+    if not t:
+        raise HTTPException(status_code=400, detail="Пустой тикер")
+    try:
+        price = get_price_usd(t, allow_stale=True)
+    except Exception:
+        raise HTTPException(status_code=404, detail=f"Нет цены для {t}")
+    try:
+        rate = get_usd_rub()
+    except Exception:
+        rate = 0
+    return {"ticker": t, "price": price, "rate": rate,
+            "priceRub": round(price * rate, 2) if rate else None}
+
+
 @app.get("/api/history")
 def history(p: str = "bezb", x_init_data: str | None = Header(default=None)):
     _ctx(p, x_init_data)
