@@ -473,23 +473,58 @@ def _cta_kb():
     return {"inline_keyboard": [[{"text": "📈 Открыть Без Б", "url": url}]]}
 
 
+# Теги Telegram HTML, которые разрешаем в постах (AI размечает ими акценты).
+_HTML_TAGS = ("b", "strong", "i", "em", "u", "s", "code", "pre", "blockquote", "tg-spoiler")
+
+
+def _html_safe(text: str) -> str:
+    """Экранировать &<> для Telegram parse_mode=HTML, затем вернуть разрешённые теги.
+
+    Так стрелочки/амперсанды в обычном тексте («S&P», «BTC > $60k») не ломают
+    парсинг, а наши <b>/<i>/<blockquote>/<tg-spoiler> остаются рабочими.
+    """
+    esc = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    for t in _HTML_TAGS:
+        esc = esc.replace(f"&lt;{t}&gt;", f"<{t}>").replace(f"&lt;/{t}&gt;", f"</{t}>")
+    return esc
+
+
 def _channel_post(text: str, chart: bytes | None = None, cta: bool = True):
     """Опубликовать в канал. chart — фото (график/картинка); cta — кнопка на бота.
 
-    Если есть фото и текст влезает в подпись (<=1024) — публикуем ОДНИМ постом
-    (фото с подписью), иначе фото отдельно + текст. Кнопка-ссылка на бота
-    добавляется по флагу cta.
+    Текст рендерится как Telegram HTML (<b>/<i>/<blockquote>/<tg-spoiler>); если
+    Telegram отверг разметку — повторяем без parse_mode (исходный текст), чтобы пост
+    всё равно ушёл. Если есть фото и текст влезает в подпись (<=1024) — публикуем
+    ОДНИМ постом, иначе фото отдельно + текст. Кнопка-ссылка на бота — по флагу cta.
     """
     import requests
     base = f"https://api.telegram.org/bot{config.BOT_TOKEN}"
     kb = _cta_kb() if cta else None
+    safe = _html_safe(text)
+
+    def _send_photo(caption, parse):
+        data = {"chat_id": config.CHANNEL_ID, "caption": caption}
+        if parse:
+            data["parse_mode"] = parse
+        if kb:
+            data["reply_markup"] = json.dumps(kb)
+        return requests.post(f"{base}/sendPhoto", data=data,
+                             files={"photo": ("bezb.png", chart, "image/png")}, timeout=30)
+
+    def _send_msg(body, parse):
+        payload = {"chat_id": config.CHANNEL_ID, "text": body}
+        if parse:
+            payload["parse_mode"] = parse
+        if kb:
+            payload["reply_markup"] = kb
+        return requests.post(f"{base}/sendMessage", json=payload, timeout=20)
+
     if chart and len(text) <= 1024:
-        r = requests.post(f"{base}/sendPhoto",
-                          data={"chat_id": config.CHANNEL_ID, "caption": text,
-                                **({"reply_markup": json.dumps(kb)} if kb else {})},
-                          files={"photo": ("bezb.png", chart, "image/png")}, timeout=30)
+        r = _send_photo(safe, "HTML")
         if not r.json().get("ok"):
-            raise RuntimeError(r.text)
+            r = _send_photo(text, None)  # фолбэк без разметки
+            if not r.json().get("ok"):
+                raise RuntimeError(r.text)
         return
     if chart:
         try:
@@ -497,12 +532,11 @@ def _channel_post(text: str, chart: bytes | None = None, cta: bool = True):
                           files={"photo": ("bezb.png", chart, "image/png")}, timeout=30)
         except Exception:
             pass  # без графика не критично
-    payload = {"chat_id": config.CHANNEL_ID, "text": text}
-    if kb:
-        payload["reply_markup"] = kb
-    r = requests.post(f"{base}/sendMessage", json=payload, timeout=20)
+    r = _send_msg(safe, "HTML")
     if not r.json().get("ok"):
-        raise RuntimeError(r.text)
+        r = _send_msg(text, None)  # фолбэк без разметки
+        if not r.json().get("ok"):
+            raise RuntimeError(r.text)
 
 
 def _channel_poll(question: str, options: list):

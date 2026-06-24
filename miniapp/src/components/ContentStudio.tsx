@@ -39,6 +39,17 @@ function parseZen(text: string): ZenArt | null {
   return null;
 }
 
+// Превью поста как в Telegram: экранируем всё, возвращаем разрешённые теги, \n→<br>.
+// Те же теги, что рендерит сервер при публикации (parse_mode=HTML).
+const POST_TAGS = ["b", "strong", "i", "em", "u", "s", "code", "pre", "blockquote", "tg-spoiler"];
+function renderPostHtml(text: string): string {
+  let s = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  for (const t of POST_TAGS) {
+    s = s.split(`&lt;${t}&gt;`).join(`<${t}>`).split(`&lt;/${t}&gt;`).join(`</${t}>`);
+  }
+  return s.replace(/\n/g, "<br>");
+}
+
 // Ручная генерация ВНЕ плана. Экспертные (утро) — ценность/авторитет.
 const EXPERT: { kind: string; label: string }[] = [
   { kind: "news", label: "📰 Новости" },
@@ -234,7 +245,8 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
                             Опубликуется как настоящий Telegram-опрос
                           </div>
                         </div>
-                      ) : <div className="ai-text draft-text">{d.text}</div>;
+                      ) : <div className="ai-text draft-text"
+                            dangerouslySetInnerHTML={{ __html: renderPostHtml(d.text) }} />;
                     })()}
                     <div className="draft-actions">
                       <button className="cta" onClick={() => publish(d.id)}>
@@ -246,7 +258,8 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
                   </>
                 ) : (
                   <>
-                    <div className="ai-text draft-text">{d.text}</div>
+                    <div className="ai-text draft-text"
+                      dangerouslySetInnerHTML={{ __html: renderPostHtml(d.text) }} />
                     <div className="muted-note" style={{ margin: "2px 0 4px" }}>Картинка:</div>
                     <div className="chips" style={{ marginBottom: 8 }}>
                       {PIC_TYPES.map((p) => (
