@@ -1266,6 +1266,15 @@ async def _make_draft(context: ContextTypes.DEFAULT_TYPE, kind: str):
                 "Открой приложение → Профиль → Контент-студия, проверь и опубликуй." + hint)
     except Exception:
         log.exception("планировщик: не удалось подготовить черновик %s", kind)
+        if config.ADMIN_ID:
+            try:
+                await context.bot.send_message(
+                    config.ADMIN_ID,
+                    f"⚠️ Не удалось автоматически подготовить черновик "
+                    f"«{_KIND_LABEL.get(kind, kind)}» (сбой AI). "
+                    "Сгенерируй вручную в Контент-студии или попробуй позже.")
+            except Exception:
+                log.exception("планировщик: не смог уведомить владельца о сбое %s", kind)
 
 
 # ───────── Недельная сетка-воронка (Пн..Вс) ─────────

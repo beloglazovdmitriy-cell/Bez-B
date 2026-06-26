@@ -96,26 +96,34 @@ def _client():
 
 def _call(model: str, system: str, user: str, tools=None, max_tokens: int = 1200) -> str:
     """Один вызов Claude (или совместимого прокси). Обрабатывает pause_turn для
-    серверных инструментов вроде web_search. Возвращает текст ответа."""
+    серверных инструментов вроде web_search. Возвращает текст ответа.
+
+    Прокси (gpt-5.5 через tokenator) изредка отдаёт ответ с content=None/пустым
+    текстом (транзиентный сбой после ретраев/перегруза) — раньше это валило
+    генерацию (TypeError на None). Теперь повторяем весь вызов до 3 раз и
+    бросаем понятную ошибку, только если текст так и не пришёл."""
     client = _client()
-    messages = [{"role": "user", "content": user}]
+    base = [{"role": "user", "content": user}]
     kw = {"tools": tools} if tools else {}
     if REASONING:
         kw["extra_body"] = {"reasoning": {"enabled": True}}
-    resp = None
-    for _ in range(4):
-        resp = client.messages.create(
-            model=model, max_tokens=max_tokens, system=system, messages=messages, **kw)
-        if resp.stop_reason == "pause_turn":
-            messages = [{"role": "user", "content": user},
-                        {"role": "assistant", "content": resp.content}]
-            continue
-        break
-    out = []
-    for b in (resp.content if resp else []):
-        if b.type == "text":
-            out.append(b.text)
-    return "".join(out).strip()
+    text = ""
+    for _attempt in range(3):
+        messages = list(base)
+        resp = None
+        for _ in range(4):                       # обработка pause_turn (web_search)
+            resp = client.messages.create(
+                model=model, max_tokens=max_tokens, system=system, messages=messages, **kw)
+            if resp.stop_reason == "pause_turn":
+                messages = base + [{"role": "assistant", "content": resp.content}]
+                continue
+            break
+        out = [b.text for b in ((resp.content if resp else None) or [])
+               if getattr(b, "type", "") == "text"]
+        text = "".join(out).strip()
+        if text:
+            return text
+    raise RuntimeError("AI вернул пустой ответ (после повторов)")
 
 
 def analyze_portfolio(data: dict) -> str:
