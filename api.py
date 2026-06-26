@@ -729,6 +729,11 @@ _CONTENT_LABELS = {
     "promo_speed": "🎯 Скорость пушей", "promo_alert": "🎯 Алерты",
     "promo_sandbox": "🎯 DCA-песочница", "promo_underdog": "🎯 Нелюбимчик",
 }
+_ZEN_LABELS = {
+    "zen_scam": "🚩 Разоблачение", "zen_story": "🙋 Личный путь",
+    "zen_pain": "💸 Болевая тема", "zen_explain": "📚 Объяснение",
+    "zen_mistakes": "⚠️ Ошибки новичка",
+}
 _DOW_RU = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
 
 
@@ -745,8 +750,13 @@ def content_plan(x_init_data: str | None = Header(default=None)):
             "morning": {"kind": m, "label": _CONTENT_LABELS.get(m, m)},
             "evening": {"kind": e, "label": _CONTENT_LABELS.get(e, e)},
         })
+    zen = []
+    for d, k in sorted(config.CONTENT_ZEN_WEEK_PLAN.items()):
+        zen.append({"day": d, "dow": _DOW_RU[d], "isToday": d == today,
+                    "kind": k, "label": _ZEN_LABELS.get(k, k)})
     return {"today": today, "morningHour": config.CONTENT_MORNING_HOUR,
-            "eveningHour": config.CONTENT_EVENING_HOUR, "days": days}
+            "eveningHour": config.CONTENT_EVENING_HOUR,
+            "zenHour": config.CONTENT_ZEN_HOUR, "days": days, "zen": zen}
 
 
 @app.post("/api/content/custom")

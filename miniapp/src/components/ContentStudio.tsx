@@ -347,7 +347,24 @@ export default function ContentStudio({ onClose }: { onClose: () => void }) {
               AI пишет статью под Дзен (заголовок + текст на дочитывания + мягкий призыв в канал).
               Сгенерируй → скопируй → вставь в редактор Дзена.
             </div>
-            <div className="field-label">Рубрика статьи</div>
+            {plan && plan.zen && plan.zen.length > 0 && (
+              <>
+                <div className="field-label">План Дзена · бот готовит сам</div>
+                <div className="muted-note" style={{ marginBottom: 8 }}>
+                  Каждый день в {plan.zenHour}:00 МСК бот делает 1 статью-черновик и пингует
+                  тебя в ЛС. Публикуешь копипастом в Дзен — статьи ниже.
+                </div>
+                <div className="plan-grid" style={{ marginBottom: 12 }}>
+                  {plan.zen.map((z) => (
+                    <div key={z.day} className={"plan-row" + (z.isToday ? " today" : "")}>
+                      <div className="plan-dow">{z.dow}{z.isToday ? " ·" : ""}</div>
+                      <div className="plan-slot">📝 {z.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            <div className="field-label">Сделать статью сейчас · рубрика</div>
             <div className="chips" style={{ marginBottom: 10 }}>
               {ZEN.map((r) => (
                 <button key={r.kind} className="chip" disabled={!!busy}

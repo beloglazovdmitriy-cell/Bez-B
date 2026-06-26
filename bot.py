@@ -1317,6 +1317,47 @@ async def job_content_evening(context: ContextTypes.DEFAULT_TYPE):
     await _make_draft(context, kind)
 
 
+# Метки рубрик Дзена (для пинга владельцу).
+_ZEN_LABEL = {
+    "zen_scam": "🚩 Разоблачение", "zen_story": "🙋 Личный путь",
+    "zen_pain": "💸 Болевая тема", "zen_explain": "📚 Объяснение",
+    "zen_mistakes": "⚠️ Ошибки новичка",
+}
+
+
+async def job_content_zen(context: ContextTypes.DEFAULT_TYPE):
+    """Дзен: 1 статья-лонгрид в день по недельному плану (черновик на ревью).
+
+    Статья НЕ публикуется автоматически — Дзен принимает только копипаст руками,
+    поэтому бот готовит черновик и пингует владельца скопировать в редактор Дзена."""
+    if not ai.available():
+        log.warning("планировщик Дзен: AI недоступен, пропускаю")
+        return
+    kind = config.CONTENT_ZEN_WEEK_PLAN[datetime.now().weekday()]
+    try:
+        import json as _json
+        art = await asyncio.to_thread(ai.zen_article, kind)
+        storage.use_uid("bezb")
+        d = storage.add_draft("zen", _json.dumps(art, ensure_ascii=False))
+        log.info("планировщик Дзен: статья %s готова (id=%s)", kind, d)
+        if config.ADMIN_ID:
+            await context.bot.send_message(
+                config.ADMIN_ID,
+                f"📝 Готова Дзен-статья «{_ZEN_LABEL.get(kind, kind)}».\n"
+                "Открой приложение → Профиль → Контент-студия → Дзен-статьи, "
+                "проверь и скопируй в редактор Дзена.")
+    except Exception:
+        log.exception("планировщик Дзен: не удалось подготовить статью %s", kind)
+        if config.ADMIN_ID:
+            try:
+                await context.bot.send_message(
+                    config.ADMIN_ID,
+                    f"⚠️ Не удалось автоматически подготовить Дзен-статью "
+                    f"«{_ZEN_LABEL.get(kind, kind)}» (сбой AI). Сгенерируй вручную в студии.")
+            except Exception:
+                log.exception("планировщик Дзен: не смог уведомить владельца")
+
+
 async def job_home_digest(context: ContextTypes.DEFAULT_TYPE):
     """Раз в сутки обновляет «Рынок за 60 сек» на главной (кэш в meta, НЕ зависит
     от ручных публикаций — раньше блок висел старый, пока владелец не опубликует)."""
@@ -1464,6 +1505,8 @@ def main():
         # контент-конвейер: 2 черновика в день на ревью — утром эксперт, вечером опрос/конверсия
         jq.run_daily(job_content_morning, time=dtime(hour=_MORNING_HOUR, tzinfo=_MSK))
         jq.run_daily(job_content_evening, time=dtime(hour=_EVENING_HOUR, tzinfo=_MSK))
+        # Дзен — 1 статья-лонгрид в день (черновик на ревью, копипаст в Дзен руками)
+        jq.run_daily(job_content_zen, time=dtime(hour=config.CONTENT_ZEN_HOUR, tzinfo=_MSK))
         # «Рынок за 60 сек» на главной — обновляем каждое утро (до утреннего поста)
         jq.run_daily(job_home_digest, time=dtime(hour=8, minute=30, tzinfo=_MSK))
         jq.run_daily(job_price_snapshot, time=dtime(hour=_PRICE_SNAPSHOT_HOUR, minute=50, tzinfo=_MSK))
@@ -1474,8 +1517,8 @@ def main():
                          interval=timedelta(hours=_ALERT_INTERVAL_HOURS), first=120)
         # «Нелюбимчик недели» (премиум) — Пн утром
         jq.run_daily(job_underdog_weekly, time=dtime(hour=_UNDERDOG_HOUR, tzinfo=_MSK))
-        log.info("Контент: утро %02d:00 экспертный пост, вечер %02d:00 опрос/конверсия.",
-                 _MORNING_HOUR, _EVENING_HOUR)
+        log.info("Контент: утро %02d:00 эксперт, вечер %02d:00 опрос/конверсия, "
+                 "Дзен %02d:00 статья.", _MORNING_HOUR, _EVENING_HOUR, config.CONTENT_ZEN_HOUR)
     else:
         log.warning("JobQueue недоступна — автоснимок и черновики отключены.")
 

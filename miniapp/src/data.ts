@@ -404,7 +404,11 @@ export const apiContentGenerate = (kind: string) =>
 export const apiContentDrafts = () => reqJSON<Draft[]>("/api/content/drafts");
 export interface PlanSlot { kind: string; label: string; }
 export interface PlanDay { day: number; dow: string; isToday: boolean; morning: PlanSlot; evening: PlanSlot; }
-export interface ContentPlan { today: number; morningHour: number; eveningHour: number; days: PlanDay[]; }
+export interface ZenDay { day: number; dow: string; isToday: boolean; kind: string; label: string; }
+export interface ContentPlan {
+  today: number; morningHour: number; eveningHour: number; zenHour: number;
+  days: PlanDay[]; zen: ZenDay[];
+}
 export const apiContentPlan = () => reqJSON<ContentPlan>("/api/content/plan");
 export async function apiContentPublish(
   id: number,
