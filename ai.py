@@ -94,26 +94,61 @@ def _client():
     return anthropic.Anthropic(**kw)
 
 
+def _err_reason(raw_body: str) -> str:
+    """Достать человекочитаемую причину из сырого тела ответа прокси.
+
+    Прокси (tokenator) при сбое отдаёт HTTP 200, но в теле — ошибку, которую
+    SDK молча проглатывает (content=None). Типичные тела:
+      {"balance_rub":0,"error":"Insufficient balance"}
+      {"type":"error","error":{"type":"overloaded_error","message":"..."}}
+    Возвращаем краткую причину (или "")."""
+    import json as _json
+    try:
+        d = _json.loads(raw_body or "")
+    except Exception:
+        return ""
+    if not isinstance(d, dict):
+        return ""
+    err = d.get("error")
+    msg = ""
+    if isinstance(err, dict):
+        msg = err.get("message") or err.get("type") or ""
+    elif isinstance(err, str):
+        msg = err
+    low = (msg or "").lower()
+    if "insufficient" in low or d.get("balance_rub") == 0 or "balance" in low:
+        return "кончился баланс AI-ключа — пополни его (tokenator)"
+    if "overload" in low or "unavailable" in low:
+        return "модель AI временно перегружена/недоступна — попробуй позже"
+    return msg
+
+
 def _call(model: str, system: str, user: str, tools=None, max_tokens: int = 1200) -> str:
     """Один вызов Claude (или совместимого прокси). Обрабатывает pause_turn для
     серверных инструментов вроде web_search. Возвращает текст ответа.
 
-    Прокси (gpt-5.5 через tokenator) изредка отдаёт ответ с content=None/пустым
-    текстом (транзиентный сбой после ретраев/перегруза) — раньше это валило
-    генерацию (TypeError на None). Теперь повторяем весь вызов до 3 раз и
-    бросаем понятную ошибку, только если текст так и не пришёл."""
+    Прокси изредка (а при нулевом балансе/перегрузе — постоянно) отдаёт HTTP 200
+    с пустым телом-ошибкой → content=None. Раньше это валило генерацию (TypeError),
+    теперь повторяем до 3 раз и бросаем ПОНЯТНУЮ причину (баланс/перегруз),
+    вытащенную из сырого тела ответа прокси."""
     client = _client()
     base = [{"role": "user", "content": user}]
     kw = {"tools": tools} if tools else {}
     if REASONING:
         kw["extra_body"] = {"reasoning": {"enabled": True}}
     text = ""
+    reason = ""
     for _attempt in range(3):
         messages = list(base)
         resp = None
         for _ in range(4):                       # обработка pause_turn (web_search)
-            resp = client.messages.create(
+            raw = client.messages.with_raw_response.create(
                 model=model, max_tokens=max_tokens, system=system, messages=messages, **kw)
+            try:
+                reason = _err_reason(raw.text) or reason
+            except Exception:
+                pass
+            resp = raw.parse()
             if resp.stop_reason == "pause_turn":
                 messages = base + [{"role": "assistant", "content": resp.content}]
                 continue
@@ -123,7 +158,7 @@ def _call(model: str, system: str, user: str, tools=None, max_tokens: int = 1200
         text = "".join(out).strip()
         if text:
             return text
-    raise RuntimeError("AI вернул пустой ответ (после повторов)")
+    raise RuntimeError(reason or "AI вернул пустой ответ (после повторов)")
 
 
 def analyze_portfolio(data: dict) -> str:
