@@ -335,7 +335,7 @@ export async function apiDigest(): Promise<string> {
 // Опубликовать текст в канал (только владелец)
 export const apiPublish = (text: string) => postJSON("/api/publish", { text });
 
-// ── Контент-студия (очередь черновиков, только владелец) ──
+// Публичные записи ленты. Историческое имя Draft сохранено для совместимости API.
 export interface Draft {
   id: number; ts: number; kind: string; text: string; status: string;
   reactions?: Record<string, number>; mine?: string[]; comments?: number;
@@ -399,40 +399,23 @@ export interface BezbIndexComp { label: string; score: number; detail: string; }
 export interface BezbIndex { value: number; label: string; zone: string; components: BezbIndexComp[]; }
 export interface Home { mood: HomeMood | null; digest: HomeDigest | null; bezbToday: HomeTrade | null; bezbIndex?: BezbIndex | null; }
 export const apiHome = () => reqJSON<Home>("/api/home");
-export const apiContentGenerate = (kind: string) =>
-  reqJSON<Draft>(`/api/content/generate?kind=${kind}`, "POST");
-export const apiContentDrafts = () => reqJSON<Draft[]>("/api/content/drafts");
-export interface PlanSlot { kind: string; label: string; }
-export interface PlanDay { day: number; dow: string; isToday: boolean; morning: PlanSlot; evening: PlanSlot; }
-export interface ZenDay { day: number; dow: string; isToday: boolean; kind: string; label: string; }
-export interface ContentPlan {
-  today: number; morningHour: number; eveningHour: number; zenHour: number;
-  days: PlanDay[]; zen: ZenDay[];
-}
-export const apiContentPlan = () => reqJSON<ContentPlan>("/api/content/plan");
-export async function apiContentPublish(
-  id: number,
-  opts: { cta?: boolean; pic?: string; image?: File | null } = {},
-): Promise<{ ok: boolean }> {
+export async function apiContentPublishDirect(
+  text: string,
+  opts: { cta?: boolean; image?: File | null } = {},
+): Promise<{ ok: boolean; id: number }> {
   const cta = opts.cta !== false;
-  const pic = opts.pic || "auto";
-  const url = `${API_BASE}/api/content/publish?id=${id}&cta=${cta}&pic=${pic}`;
-  const init: RequestInit = { method: "POST", headers: { "X-Init-Data": initData() } };
-  if (opts.image) {
-    const fd = new FormData();
-    fd.append("image", opts.image);
-    init.body = fd;
-  }
-  const res = await fetch(url, init);
+  const form = new FormData();
+  form.append("text", text);
+  form.append("cta", String(cta));
+  if (opts.image) form.append("image", opts.image);
+  const res = await fetch(`${API_BASE}/api/content/publish-direct`, {
+    method: "POST",
+    headers: { "X-Init-Data": initData() },
+    body: form,
+  });
   if (!res.ok) {
-    const e = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error((e as any).detail || "Ошибка публикации");
+    const error = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error((error as any).detail || "Ошибка публикации");
   }
   return res.json();
 }
-export const apiZenGenerate = (kind: string) =>
-  reqJSON<Draft>(`/api/zen/generate?kind=${kind}`, "POST");
-export const apiZenCustom = (topic: string) => postJSON("/api/zen/custom", { topic });
-export const apiContentDelete = (id: number) => reqJSON<{ ok: boolean }>(`/api/content/delete?id=${id}`, "POST");
-export const apiContentUpdate = (id: number, text: string) => postJSON(`/api/content/update?id=${id}`, { text });
-export const apiContentCustom = (topic: string) => postJSON("/api/content/custom", { topic });

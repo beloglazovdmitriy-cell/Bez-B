@@ -65,6 +65,12 @@ REFERRAL_PREMIUM_DAYS = int(os.getenv("REFERRAL_PREMIUM_DAYS", "3"))
 # Часы публикации черновиков (MSK). Утро — ценность/авторитет, вечер — вовлечение/продажа.
 CONTENT_MORNING_HOUR = int(os.getenv("CONTENT_MORNING_HOUR", "9"))
 CONTENT_EVENING_HOUR = int(os.getenv("CONTENT_EVENING_HOUR", "19"))
+# Старый ежедневный конвейер выключен после продуктового перезапуска 2026-07-21.
+# Можно временно включить явно через env, но новые посты планирует PBAi и каждый
+# материал проходит ручное подтверждение автора.
+LEGACY_CONTENT_SCHEDULE_ENABLED = os.getenv(
+    "LEGACY_CONTENT_SCHEDULE_ENABLED", "0"
+).strip().lower() in {"1", "true", "yes", "on"}
 # Недельная воронка: weekday (0=Пн … 6=Вс) → (утренняя рубрика, вечерняя рубрика).
 # Бот сам готовит эти черновики на ревью; ведёт к продаже подписки в воскресенье.
 CONTENT_WEEK_PLAN = {

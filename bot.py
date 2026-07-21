@@ -1499,16 +1499,18 @@ def main():
 
     if app.job_queue:
         jq = app.job_queue
-        jq.run_repeating(
-            job_weekly, interval=timedelta(days=7),
-            first=_seconds_until_next_sunday_18())
-        # контент-конвейер: 2 черновика в день на ревью — утром эксперт, вечером опрос/конверсия
-        jq.run_daily(job_content_morning, time=dtime(hour=_MORNING_HOUR, tzinfo=_MSK))
-        jq.run_daily(job_content_evening, time=dtime(hour=_EVENING_HOUR, tzinfo=_MSK))
-        # Дзен — 1 статья-лонгрид в день (черновик на ревью, копипаст в Дзен руками)
-        jq.run_daily(job_content_zen, time=dtime(hour=config.CONTENT_ZEN_HOUR, tzinfo=_MSK))
-        # «Рынок за 60 сек» на главной — обновляем каждое утро (до утреннего поста)
-        jq.run_daily(job_home_digest, time=dtime(hour=8, minute=30, tzinfo=_MSK))
+        if config.LEGACY_CONTENT_SCHEDULE_ENABLED:
+            jq.run_repeating(
+                job_weekly, interval=timedelta(days=7),
+                first=_seconds_until_next_sunday_18())
+            # Архивный конвейер: два черновика в день + Дзен + дайджест главной.
+            jq.run_daily(job_content_morning, time=dtime(hour=_MORNING_HOUR, tzinfo=_MSK))
+            jq.run_daily(job_content_evening, time=dtime(hour=_EVENING_HOUR, tzinfo=_MSK))
+            jq.run_daily(job_content_zen, time=dtime(hour=config.CONTENT_ZEN_HOUR, tzinfo=_MSK))
+            jq.run_daily(job_home_digest, time=dtime(hour=8, minute=30, tzinfo=_MSK))
+            log.warning("Включён архивный ежедневный контент-конвейер Без Б.")
+        else:
+            log.info("Архивный контент-конвейер выключен; планированием управляет PBAi.")
         jq.run_daily(job_price_snapshot, time=dtime(hour=_PRICE_SNAPSHOT_HOUR, minute=50, tzinfo=_MSK))
         jq.run_daily(job_predict_weekly, time=dtime(hour=_PREDICT_HOUR, tzinfo=_MSK))
         jq.run_daily(job_daily_reminder, time=dtime(hour=_REMIND_HOUR, tzinfo=_MSK))
@@ -1517,8 +1519,6 @@ def main():
                          interval=timedelta(hours=_ALERT_INTERVAL_HOURS), first=120)
         # «Нелюбимчик недели» (премиум) — Пн утром
         jq.run_daily(job_underdog_weekly, time=dtime(hour=_UNDERDOG_HOUR, tzinfo=_MSK))
-        log.info("Контент: утро %02d:00 эксперт, вечер %02d:00 опрос/конверсия, "
-                 "Дзен %02d:00 статья.", _MORNING_HOUR, _EVENING_HOUR, config.CONTENT_ZEN_HOUR)
     else:
         log.warning("JobQueue недоступна — автоснимок и черновики отключены.")
 

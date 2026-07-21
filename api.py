@@ -18,7 +18,7 @@ import os
 from datetime import datetime
 from urllib.parse import parse_qsl
 
-from fastapi import FastAPI, File, Header, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -478,18 +478,13 @@ def trade_comment(id: int, p: str = "bezb", x_init_data: str | None = Header(def
 class PublishReq(BaseModel):
     text: str
     cta: bool = True              # прикреплять ли кнопку-ссылку на бота
-    chartKind: str | None = None  # если задано — приложить график рубрики
-
-
-class TopicReq(BaseModel):
-    topic: str
 
 
 def _cta_kb():
     # прямой вход в мини-апп с меткой источника «channel» — чтобы считать
     # переходы из канала (приложение фиксирует start_param при открытии).
     url = f"https://t.me/{config.BOT_USERNAME}?startapp=src_channel"
-    return {"inline_keyboard": [[{"text": "📈 Открыть Без Б", "url": url}]]}
+    return {"inline_keyboard": [[{"text": "📊 Портфель и все сделки", "url": url}]]}
 
 
 # Теги Telegram HTML, которые разрешаем в постах (AI размечает ими акценты).
@@ -576,74 +571,6 @@ def _channel_poll(question: str, options: list):
             raise RuntimeError(body.get("description") or r.text)
 
 
-def _chart_for(kind: str) -> bytes | None:
-    """Подобрать график под рубрику (портфель Без Б)."""
-    try:
-        import charts
-        if kind == "custom":
-            return None
-        if kind == "crowd":
-            import market_mood
-            f = market_mood.snapshot().get("fng")
-            return charts.fear_greed_gauge(f["value"], f.get("label_ru", "")) if f else None
-        # теханализ, сценарии и дайджест — TA-график «карта уровней» (BTC = прокси рынка)
-        if kind in ("ta", "scenarios", "digest"):
-            return charts.ta_chart("BTCUSDT", "1d")
-        storage.use_uid("bezb")
-        s = portfolio.summary()
-        if kind in ("trade", "portfolio"):
-            return charts.composition_pie(portfolio.pie_slices(s))
-        return charts.index_line()
-    except Exception:
-        return None
-
-
-def _pic_for(pic: str, kind: str) -> bytes | None:
-    """Картинка к посту по ВЫБРАННОМУ типу (а не одна на всё). 'auto' — график под
-    рубрику; иначе конкретный тип, выбранный в студии."""
-    import charts
-    try:
-        if pic in ("", "auto"):
-            return _chart_for(kind)
-        if pic == "none":
-            return None
-        if pic == "ta":
-            return charts.ta_chart("BTCUSDT", "1d")
-        if pic == "gauge":
-            import market_mood
-            f = market_mood.snapshot().get("fng")
-            return charts.fear_greed_gauge(f["value"], f.get("label_ru", "")) if f else None
-        if pic == "portfolio":
-            storage.use_uid("bezb")
-            return charts.composition_pie(portfolio.pie_slices(portfolio.summary()))
-        if pic == "index":
-            return charts.index_line()
-        if pic == "card":
-            storage.use_uid("bezb")
-            return charts.result_card(portfolio.summary())
-        if pic == "analysis":
-            import time as _time, json as _json
-            txt = None
-            raw = storage.meta_get("bezb_analysis")
-            if raw:
-                try:
-                    c = _json.loads(raw)
-                    if _time.time() - c.get("ts", 0) < 86400:
-                        txt = c.get("text")
-                except Exception:
-                    pass
-            if not txt and ai.available():
-                storage.use_uid("bezb")
-                txt = ai.analyze_portfolio(_ai_portfolio_data("bezb"))
-                if txt:
-                    storage.meta_set("bezb_analysis", _json.dumps(
-                        {"ts": int(_time.time()), "text": txt}, ensure_ascii=False))
-            return charts.text_card("Разбор портфеля Без Б", txt) if txt else None
-    except Exception:
-        return None
-    return None
-
-
 def _require_owner(init_data):
     if not _resolve_user(init_data)["isAdmin"]:
         raise HTTPException(status_code=403, detail="Только владелец")
@@ -665,149 +592,11 @@ def publish(req: PublishReq, x_init_data: str | None = Header(default=None)):
     _require_owner(x_init_data)
     if not config.CHANNEL_ID:
         raise HTTPException(status_code=400, detail="Канал не подключён (задай CHANNEL_ID)")
-    chart = _chart_for(req.chartKind) if req.chartKind else None
     try:
-        _channel_post(req.text, chart, cta=req.cta)
+        _channel_post(req.text, None, cta=req.cta)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Не удалось опубликовать: {e}")
     return {"ok": True}
-
-
-# ──────────── Контент-студия (очередь черновиков, только владелец) ────────────
-
-def _bezb_digest_ctx() -> str:
-    storage.use_uid("bezb")
-    s = portfolio.summary()
-    pv = s["positions_value_usdt"] or 1
-    return (f"Баланс {s['value_rub']:,.0f}₽, индекс Без Б {s['index']:.0f} пт. Позиции: "
-            + (", ".join(f"{p.ticker} {p.value_usd / pv * 100:.0f}%" for p in s["positions"])
-               or "только кэш")).replace(",", " ")
-
-
-@app.post("/api/content/generate")
-def content_generate(kind: str, x_init_data: str | None = Header(default=None)):
-    _require_owner(x_init_data)
-    _ai_or_503()
-    try:
-        if kind == "digest":
-            text = ai.market_digest(_bezb_digest_ctx())
-        elif kind == "news":
-            text = ai.news_bezb()
-        elif kind == "scenarios":
-            storage.use_uid("bezb")
-            text = ai.scenarios(_ai_portfolio_data("bezb"))
-        elif kind == "crowd":
-            import market_mood
-            text = ai.crowd_post(market_mood.context())
-        elif kind == "ta":
-            text = ai.ta_bezb("BTCUSDT", "1d")
-        elif kind in ("edu", "manifest", "bullshit", "psych", "case", "fun", "personal"):
-            text = ai.content_post(kind)
-        elif kind.startswith("promo_"):
-            text = ai.convert_post(kind)
-        elif kind.startswith("poll_"):
-            import json as _json
-            p = ai.poll(kind)
-            return storage.add_draft("poll", _json.dumps(p, ensure_ascii=False))
-        else:
-            raise HTTPException(status_code=400, detail="неизвестная рубрика")
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"AI временно недоступен: {e}")
-    return storage.add_draft(kind, text)
-
-
-_CONTENT_LABELS = {
-    "news": "📰 Новости", "digest": "📊 Дайджест", "crowd": "🌡 Разбор толпы",
-    "scenarios": "🔮 Сценарии", "ta": "📐 Теханализ", "edu": "📚 Ликбез",
-    "bullshit": "🚩 Детектор буллшита", "psych": "🧠 Психология", "case": "💡 Кейс",
-    "fun": "😄 Развлекательный", "manifest": "🧭 Манифест", "personal": "🙋 Личное",
-    "poll_predict": "🗳 Прогноз недели", "poll_decision": "🗳 Что бы ты сделал?",
-    "poll_choose": "🗳 Что разобрать?", "poll_mood": "🗳 Настроение рынка",
-    "promo_results": "🎯 Итоги + оффер", "promo_ai": "🎯 AI-разбор",
-    "promo_speed": "🎯 Скорость пушей", "promo_alert": "🎯 Алерты",
-    "promo_sandbox": "🎯 DCA-песочница", "promo_underdog": "🎯 Нелюбимчик",
-}
-_ZEN_LABELS = {
-    "zen_scam": "🚩 Разоблачение", "zen_story": "🙋 Личный путь",
-    "zen_pain": "💸 Болевая тема", "zen_explain": "📚 Объяснение",
-    "zen_mistakes": "⚠️ Ошибки новичка",
-}
-_DOW_RU = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
-
-
-@app.get("/api/content/plan")
-def content_plan(x_init_data: str | None = Header(default=None)):
-    """Недельный план-воронка для Контент-студии: что бот сам готовит по дням."""
-    _require_owner(x_init_data)
-    import datetime
-    today = datetime.datetime.now().weekday()
-    days = []
-    for d, (m, e) in sorted(config.CONTENT_WEEK_PLAN.items()):
-        days.append({
-            "day": d, "dow": _DOW_RU[d], "isToday": d == today,
-            "morning": {"kind": m, "label": _CONTENT_LABELS.get(m, m)},
-            "evening": {"kind": e, "label": _CONTENT_LABELS.get(e, e)},
-        })
-    zen = []
-    for d, k in sorted(config.CONTENT_ZEN_WEEK_PLAN.items()):
-        zen.append({"day": d, "dow": _DOW_RU[d], "isToday": d == today,
-                    "kind": k, "label": _ZEN_LABELS.get(k, k)})
-    return {"today": today, "morningHour": config.CONTENT_MORNING_HOUR,
-            "eveningHour": config.CONTENT_EVENING_HOUR,
-            "zenHour": config.CONTENT_ZEN_HOUR, "days": days, "zen": zen}
-
-
-@app.post("/api/content/custom")
-def content_custom(req: TopicReq, x_init_data: str | None = Header(default=None)):
-    """Создать черновик по своей теме/задаче (только владелец)."""
-    _require_owner(x_init_data)
-    _ai_or_503()
-    topic = (req.topic or "").strip()
-    if not topic:
-        raise HTTPException(status_code=400, detail="Пустая тема")
-    try:
-        text = ai.custom_post(topic)
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"AI временно недоступен: {e}")
-    return storage.add_draft("custom", text)
-
-
-# ───────── Конвейер Дзена: генерация статей-лонгридов (только владелец) ─────────
-
-def _zen_store(art: dict):
-    import json as _json
-    return storage.add_draft("zen", _json.dumps(art, ensure_ascii=False))
-
-
-@app.post("/api/zen/generate")
-def zen_generate(kind: str = "", x_init_data: str | None = Header(default=None)):
-    """Сгенерировать статью Дзена по рубрике. Черновик kind='zen' (text=JSON{title,body})."""
-    _require_owner(x_init_data)
-    _ai_or_503()
-    try:
-        art = ai.zen_article(kind=kind)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"AI временно недоступен: {e}")
-    return _zen_store(art)
-
-
-@app.post("/api/zen/custom")
-def zen_custom(req: TopicReq, x_init_data: str | None = Header(default=None)):
-    """Статья Дзена по своей теме (только владелец)."""
-    _require_owner(x_init_data)
-    _ai_or_503()
-    topic = (req.topic or "").strip()
-    if not topic:
-        raise HTTPException(status_code=400, detail="Пустая тема")
-    try:
-        art = ai.zen_article(topic=topic)
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"AI временно недоступен: {e}")
-    return _zen_store(art)
 
 
 # "bez" — фирменная реакция-логотип «Без Б» (рисуется монетой на фронте).
@@ -1753,58 +1542,40 @@ def unsubscribe(x_init_data: str | None = Header(default=None)):
     return {"ok": True, "isSubscribed": False}
 
 
-@app.get("/api/content/drafts")
-def content_drafts(x_init_data: str | None = Header(default=None)):
-    _require_owner(x_init_data)
-    return storage.list_drafts()
-
-
-@app.post("/api/content/publish")
-async def content_publish(id: int, cta: bool = True, pic: str = "auto",
-                          image: UploadFile | None = File(default=None),
-                          x_init_data: str | None = Header(default=None)):
-    """Опубликовать черновик. cta — кнопка на бота; pic — ТИП картинки
-    (auto/ta/gauge/portfolio/index/card/none). Своя image имеет приоритет."""
+@app.post("/api/content/publish-direct")
+async def content_publish_direct(
+    text: str = Form(...),
+    cta: bool = Form(True),
+    image: UploadFile | None = File(default=None),
+    x_init_data: str | None = Header(default=None),
+):
+    """Опубликовать готовый авторский текст без очереди и без AI-вызовов."""
     _require_owner(x_init_data)
     if not config.CHANNEL_ID:
         raise HTTPException(status_code=400, detail="Канал не подключён")
-    d = storage.get_draft(id)
-    if not d:
-        raise HTTPException(status_code=404, detail="Черновик не найден")
-    # опрос — публикуем как нативный Telegram-опрос
-    if d["kind"] == "poll":
-        import json as _json
-        try:
-            p = _json.loads(d["text"])
-            _channel_poll(p["question"], p["options"])
-        except Exception as e:
-            raise HTTPException(status_code=502, detail=f"Не удалось опубликовать опрос: {e}")
-        storage.set_draft_status(id, "published")
-        return {"ok": True}
-    photo = await image.read() if image is not None else _pic_for(pic, d["kind"])
+    body = (text or "").strip()
+    if not body:
+        raise HTTPException(status_code=400, detail="Пустой текст")
+    if len(body) > 4096:
+        raise HTTPException(status_code=400, detail="Текст длиннее лимита Telegram 4096 символов")
+
+    photo = None
+    if image is not None:
+        if image.content_type and not image.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="Можно приложить только изображение")
+        photo = await image.read()
+        if len(photo) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="Изображение больше 10 МБ")
+
     try:
-        _channel_post(d["text"], photo, cta=cta)
+        _channel_post(body, photo, cta=cta)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Не удалось опубликовать: {e}")
-    storage.set_draft_status(id, "published")
-    return {"ok": True}
 
-
-@app.post("/api/content/update")
-def content_update(id: int, req: PublishReq, x_init_data: str | None = Header(default=None)):
-    """Сохранить отредактированный текст черновика (только владелец)."""
-    _require_owner(x_init_data)
-    if not storage.get_draft(id):
-        raise HTTPException(status_code=404, detail="Черновик не найден")
-    storage.update_draft(id, req.text)
-    return {"ok": True}
-
-
-@app.post("/api/content/delete")
-def content_delete(id: int, x_init_data: str | None = Header(default=None)):
-    _require_owner(x_init_data)
-    storage.delete_draft(id)
-    return {"ok": True}
+    # Очереди нет: запись сразу получает published и остаётся в публичной ленте.
+    published = storage.add_draft("custom", body)
+    storage.set_draft_status(published["id"], "published")
+    return {"ok": True, "id": published["id"]}
 
 
 @app.get("/api/compare")

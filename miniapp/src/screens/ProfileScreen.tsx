@@ -204,7 +204,7 @@ export default function ProfileScreen({ user }: { user: User }) {
       {/* инструменты автора */}
       {u.isAdmin && (
         <button className="cta cta-ai" onClick={() => setStudio(true)}>
-          <IconAI size={18} /> Контент-студия
+          <IconChannel size={18} /> Редактор публикации
         </button>
       )}
 
